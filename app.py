@@ -43,24 +43,21 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# --- 1. AUTENTICAZIONE OAUTH DA CLOUD ---
+# --- 1. AUTENTICAZIONE OAUTH DA CLOUD (SOLO TOKEN) ---
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 client = None
 
-# Cerca se c'è già un token salvato
 if "google_token" in st.secrets:
     try:
         from google.oauth2.credentials import Credentials
         creds = Credentials.from_authorized_user_info(st.secrets["google_token"], scope)
         client = gspread.authorize(creds)
     except Exception as e:
-        st.warning(f"Token scaduto o non valido: {e}.")
-
-# Se non c'è il token, avvia il flusso di login manuale
-if client is None:
-    if "gcp_oauth_client" not in st.secrets:
-         st.error("ERRORE: I Secrets non sono configurati su Streamlit Cloud. Manca gcp_oauth_client.")
+         st.error(f"Errore caricamento credenziali: {e}. Il token è scaduto o non valido.")
          st.stop()
+else:
+    st.error("ERRORE: Manca il token OAuth. Incolla il contenuto di token.json nei Secrets sotto [google_token].")
+    st.stop()
          
     from google_auth_oauthlib.flow import Flow
     flow = Flow.from_client_config(
