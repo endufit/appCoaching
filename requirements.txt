@@ -1,0 +1,6 @@
+streamlit
+gspread
+google-auth
+streamlit-cookies-controller
+pandas
+requests
