@@ -17,18 +17,43 @@ st.set_page_config(
 # 2. INIZIALIZZA IL CONTROLLER DEI COOKIE
 controller = CookieController()
 
-# --- BANNER INSTALLAZIONE INTELLIGENTE ---
+# --- TEMA BLU, BIANCO E ROSSO + BANNER INSTALLAZIONE ---
 st.markdown("""
     <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #0f172a;
+        }
+        h1, h2, h3, h4, label {
+            color: #1e3a8a !important;
+        }
         .pwa-banner {
-            background: linear-gradient(135deg, #0ea5e9, #2563eb);
-            color: white;
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: white !important;
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
             font-size: 14px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
             text-align: center;
+            border-left: 6px solid #e52d27;
+        }
+        div.stButton > button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
+            background-color: #e52d27 !important;
+            color: white !important;
+            border: none !important;
+            font-weight: bold !important;
+        }
+        div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {
+            background-color: #1e3a8a !important;
+            color: white !important;
+            border: none !important;
+        }
+        div[data-testid="stExpander"] {
+            border: 1px solid #1e3a8a !important;
+            border-radius: 8px !important;
+            background-color: #f8fafc !important;
         }
         @media all and (display-mode: standalone) {
             .pwa-banner { display: none !important; }
@@ -38,53 +63,19 @@ st.markdown("""
         }
     </style>
     <div class="pwa-banner">
-        📲 <b>Salva l'app sul telefono!</b><br><br>
-        Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b>"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
+        📲 <b style="color: white;">Salva l'app sul telefono!</b><br><br>
+        Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
     </div>
 """, unsafe_allow_html=True)
 
-# --- 1. AUTENTICAZIONE OAUTH DA CLOUD (SOLO TOKEN) ---
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-client = None
-
-if "google_token" in st.secrets:
-    try:
-        from google.oauth2.credentials import Credentials
-        creds = Credentials.from_authorized_user_info(st.secrets["google_token"], scope)
-        client = gspread.authorize(creds)
-    except Exception as e:
-         st.error(f"Errore caricamento credenziali: {e}. Il token è scaduto o non valido.")
-         st.stop()
-else:
-    st.error("ERRORE: Manca il token OAuth. Incolla il contenuto di token.json nei Secrets sotto [google_token].")
+# --- 1. AUTENTICAZIONE GOOGLE ---
+try:
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+    client = gspread.authorize(credentials)
+except Exception as e:
+    st.error("Errore di autenticazione con Google. Controlla le chiavi segrete.")
     st.stop()
-         
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(
-        st.secrets["gcp_oauth_client"],
-        scopes=scope,
-        redirect_uri='urn:ietf:wg:oauth:2.0:oob'
-    )
-
-    st.warning("⚠️ L'applicazione deve essere autorizzata (Solo prima volta).")
-    auth_url, _ = flow.authorization_url(prompt='consent')
-    
-    st.markdown(f"1. **[Clicca qui per fare il login admin]({auth_url})**")
-    code = st.text_input("2. Incolla qui il codice di verifica che ti dà Google:")
-    
-    if code:
-        try:
-            flow.fetch_token(code=code)
-            creds_json = flow.credentials.to_json()
-            client = gspread.authorize(flow.credentials)
-            st.success("✅ Loggato! Copia questo testo in basso nei Secrets sotto [google_token].")
-            st.code(creds_json, language="json")
-            st.stop()
-        except Exception as e:
-             st.error(f"Errore: {e}")
-             st.stop()
-    else:
-        st.stop()
 
 # --- 2. RECUPERO ID FOGLIO (AUTOMATICO DA URL O MEMORIA) ---
 id_foglio = st.query_params.get("id")
@@ -96,7 +87,7 @@ else:
 
 if not id_foglio:
     st.info("🔄 Sincronizzazione scheda in corso...")
-    st.markdown("<p style='text-align: center; color: gray; font-size: 12px;'>Se la schermata rimane bloccata, assicurati di aver aperto il link originale inviato dal coach almeno una volta.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #475569; font-size: 12px;'>Se la schermata rimane bloccata, assicurati di aver aperto il link originale inviato dal coach almeno una volta.</p>", unsafe_allow_html=True)
     st.stop()
 
 try:
@@ -121,7 +112,6 @@ def scarica_dati_fogli(_prog, _storico):
 
 dati_programma, dati_storico = scarica_dati_fogli(sheet_programma, sheet_storico)
 
-# Il motore di ricerca immagini ibrido (Database gratuito)
 @st.cache_data(ttl=86400) 
 def cerca_immagine_esercizio(nome_esercizio):
     nome_lower = nome_esercizio.lower().strip()
@@ -313,7 +303,7 @@ with tab_dash:
         if "Data" in df_stat.columns:
             vol_time = df_stat.groupby("Data")[col_tonn].sum().reset_index()
             vol_time = vol_time.set_index("Data")
-            st.line_chart(vol_time)
+            st.line_chart(vol_time, color="#e52d27")
 
 
 # ==========================================
@@ -336,7 +326,6 @@ with tab_workout:
             giorno_scelto = st.selectbox("Quale scheda (Giorno) vuoi allenare oggi?", giorni_disponibili)
             esercizi_assegnati = esercizi_dict[giorno_scelto]
             
-            # Memoria
             if "contatore_serie" not in st.session_state:
                 st.session_state.contatore_serie = {}
             if "ultimo_giorno_scelto" not in st.session_state:
@@ -370,7 +359,6 @@ with tab_workout:
                     
                     with st.expander(titolo_expander, expanded=tieni_aperto):
                         
-                        # --- DATABASE GRATUITO IMMAGINI ---
                         img_url = cerca_immagine_esercizio(es)
                         if img_url:
                             st.markdown(f"""
@@ -440,7 +428,7 @@ with tab_workout:
                                     es,                             
                                     numero_serie,        
                                     rip,          
-                                    str(kg).replace(".", ","),           
+                                    str(kg).replace(".", ","),            
                                     str(tonnellaggio).replace(".", ","),
                                     str(rpe_globale).replace(".", ","),          
                                     feedback_globale          
