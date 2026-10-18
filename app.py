@@ -109,8 +109,10 @@ st.markdown("""
             color: #ffffff !important;
             font-weight: bold !important;
         }
+        /* ⚠️ FIX: Freccette bianche ⚠️ */
         div[data-testid="stExpander"] svg {
-            color: #2997ff !important;
+            color: #ffffff !important;
+            fill: #ffffff !important; 
         }
 
         /* Tabs */
@@ -412,6 +414,9 @@ with tab_workout:
             st.divider()
             
             with st.form("workout_form"):
+                
+                # Aggiunta del titolo sopra l'elenco
+                st.write("### Scheda")
                 
                 for es_obj in esercizi_assegnati:
                     es = es_obj["nome"]
