@@ -355,50 +355,76 @@ with tab_dash:
     else:
         df_stat = df_storico.copy()
         
-        if "Tonnellaggio" in df_stat.columns or "Tonnellaggi" in df_stat.columns:
-            col_tonn = "Tonnellaggio" if "Tonnellaggio" in df_stat.columns else "Tonnellaggi"
-            df_stat[col_tonn] = pd.to_numeric(df_stat[col_tonn].astype(str).replace(",", ".", regex=True), errors='coerce').fillna(0)
-        else:
-            df_stat["Tonnellaggi"] = 0
-            col_tonn = "Tonnellaggi"
-
+        # 1. KPI Generali 
         tot_allenamenti = df_stat["Data"].nunique() if "Data" in df_stat.columns else 0
-        tot_volume = df_stat[col_tonn].sum()
         
         c1, c2 = st.columns(2)
-        c1.metric("Allenamenti Fatti", tot_allenamenti)
-        c2.metric("Tonnellaggio Totale", f"{tot_volume:,.0f} kg")
+        c1.metric("Allenamenti Completati", tot_allenamenti)
+        
+        if "Data" in df_stat.columns:
+            ultima_data = df_stat["Data"].max()
+            c2.metric("Ultimo Allenamento", str(ultima_data))
         
         st.divider()
-        st.subheader("Volume sollevato nel tempo 📈")
-        if "Data" in df_stat.columns:
-            import altair as alt
+        
+        # 2. PROGRESSIONE SUI SINGOLI ESERCIZI (Molto più utile)
+        st.subheader("Progressione Carichi 📈")
+        st.markdown("<p style='font-size: 14px;'>Seleziona un esercizio per vedere come è migliorata la tua forza nel tempo.</p>", unsafe_allow_html=True)
+        
+        if "Esercizio" in df_stat.columns and "Kg Sollevati" in df_stat.columns:
+            # Puliamo la colonna dei Kg in caso l'utente abbia inserito la virgola invece del punto
+            df_stat["Kg_puliti"] = pd.to_numeric(df_stat["Kg Sollevati"].astype(str).replace(",", ".", regex=True), errors='coerce').fillna(0)
             
-            # Raggruppa i dati per data
-            vol_time = df_stat.groupby("Data")[col_tonn].sum().reset_index()
+            # Filtriamo solo le serie in cui è stato sollevato un peso effettivo
+            df_validi = df_stat[df_stat["Kg_puliti"] > 0]
             
-            # Creiamo un grafico premium personalizzato
-            grafico = alt.Chart(vol_time).mark_line(
-                color="#e63946", # Linea Rossa FIT
-                strokeWidth=4, 
-                point=alt.OverlayMarkDef(color="#2997ff", size=150, filled=True, opacity=1) # Pallini Blu ENDU
-            ).encode(
-                x=alt.X("Data:N", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10)),
-                y=alt.Y(f"{col_tonn}:Q", title="Volume Sollevato (kg)"),
-                tooltip=[alt.Tooltip("Data:N", title="Data"), alt.Tooltip(f"{col_tonn}:Q", title="Kg Totali")]
-            ).configure(
-                background='#050A18' # Sfondo esatto del sito
-            ).configure_axis(
-                gridColor="rgba(255,255,255,0.08)", # Griglia bianca leggerissima
-                domainColor="rgba(255,255,255,0.2)",
-                labelColor="rgba(255,255,255,0.7)", # Testi chiari
-                titleColor="#ffffff"
-            ).configure_view(
-                strokeWidth=0 # Rimuove i bordi del grafico
-            )
+            esercizi_svolti = sorted(df_validi["Esercizio"].unique().tolist())
             
-            # ATTENZIONE: theme=None è la magia che impedisce a Streamlit di rimetterlo bianco!
-            st.altair_chart(grafico, use_container_width=True, theme=None)
+            if esercizi_svolti:
+                # Menu a tendina elegante per scegliere l'esercizio
+                es_selezionato = st.selectbox("Scegli un esercizio", esercizi_svolti, label_visibility="collapsed")
+                
+                # Filtra i dati per l'esercizio scelto
+                df_es = df_validi[df_validi["Esercizio"] == es_selezionato]
+                
+                # Trova il massimale assoluto (Personal Best)
+                pb_assoluto = df_es["Kg_puliti"].max()
+                
+                # Badge visivo per il PB
+                st.markdown(f"""
+                    <div style='background: rgba(230, 57, 70, 0.1); border: 1px solid rgba(230, 57, 70, 0.3); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px;'>
+                        <span style='font-size: 13px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px;'>Personal Best (1RM Testato)</span><br>
+                        <span style='color: #e63946; font-size: 28px; font-weight: 900;'>{pb_assoluto:g} <span style='font-size: 16px;'>kg</span></span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Calcola il carico massimo sollevato in ogni data per creare la curva di progressione
+                progressione = df_es.groupby("Data")["Kg_puliti"].max().reset_index()
+                
+                import altair as alt
+                # Grafico della progressione
+                grafico_prog = alt.Chart(progressione).mark_line(
+                    color="#2997ff", # Linea Blu ENDU
+                    strokeWidth=4, 
+                    point=alt.OverlayMarkDef(color="#e63946", size=150, filled=True, opacity=1) # Pallini Rossi FIT
+                ).encode(
+                    x=alt.X("Data:N", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10)),
+                    y=alt.Y("Kg_puliti:Q", title="Carico Massimo (kg)", scale=alt.Scale(zero=False, padding=10)),
+                    tooltip=[alt.Tooltip("Data:N", title="Data"), alt.Tooltip("Kg_puliti:Q", title="Carico (kg)")]
+                ).configure(
+                    background='#050A18'
+                ).configure_axis(
+                    gridColor="rgba(255,255,255,0.08)",
+                    domainColor="rgba(255,255,255,0.2)",
+                    labelColor="rgba(255,255,255,0.7)",
+                    titleColor="#ffffff"
+                ).configure_view(
+                    strokeWidth=0
+                )
+                
+                st.altair_chart(grafico_prog, use_container_width=True, theme=None)
+            else:
+                st.info("Registra dei carichi in allenamento per sbloccare le statistiche di progressione.")
 
 
 # ==========================================
