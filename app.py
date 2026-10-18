@@ -109,15 +109,10 @@ st.markdown("""
             color: #ffffff !important;
             font-weight: bold !important;
         }
-        /* FORZA LE FRECCETTE A ESSERE BIANCHE */
-        div[data-testid="stExpander"] summary svg,
-        div[data-testid="stExpander"] summary svg path,
-        div[data-testid="stExpander"] summary svg polygon {
+        /* ⚠️ FIX: Forza le nuove freccette testuali (Material Icons) a essere bianche */
+        div[data-testid="stExpander"] summary span[data-testid="stIconMaterial"] {
             color: #ffffff !important;
-            fill: #ffffff !important;
-            stroke: #ffffff !important;
         }
-
         /* Tabs */
         button[data-baseweb="tab"] p {
             font-weight: bold !important;
