@@ -54,6 +54,13 @@ st.markdown("""
         input::placeholder, textarea::placeholder {
             color: #64748b !important;
         }
+
+        /* Linee orizzontali (st.divider) */
+        hr {
+            border-bottom: 1px solid #ffffff !important;
+            opacity: 0.3 !important; /* Opzionale: per non renderle troppo un "pugno in un occhio" */
+            margin: 2em 0 !important;
+        }
         
         /* Colore icona calendario scura */
         div[data-baseweb="icon"] svg {
@@ -119,12 +126,11 @@ st.markdown("""
             color: rgba(255,255,255,0.5) !important;
         }
         button[data-baseweb="tab"][aria-selected="true"] p {
-            color: #2997ff !important;
+            color: #2997ff !important; /* Lascia il testo blu... */
         }
         div[data-baseweb="tab-highlight"] {
-            background-color: #2997ff !important;
+            background-color: #ffffff !important; /* ...ma fai la linea sotto bianca! */
         }
-
         @media all and (display-mode: standalone) {
             .pwa-banner { display: none !important; }
         }
