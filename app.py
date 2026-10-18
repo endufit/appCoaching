@@ -23,15 +23,44 @@ st.markdown("""
         /* Sfondo principale e Topbar */
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #050A18 !important;
-            color: #ffffff !important;
         }
         
-        /* Colore testi globali */
-        h1, h2, h3, h4, h5, label, p, span, div {
+        /* Colore testi globali (Rimosso 'div' e 'span' per non buggare i menu a tendina) */
+        h1, h2, h3, h4, h5, label {
             color: #ffffff !important;
         }
-        p { color: rgba(255,255,255,0.7) !important; }
-
+        p { 
+            color: rgba(255,255,255,0.7) !important; 
+        }
+        
+        /* ⚠️ FIX CAMPI DI INPUT E TESTI INVISIBILI ⚠️ */
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="textarea"] > div,
+        div[data-baseweb="base-input"] {
+            background-color: #f1f5f9 !important; /* Sfondo chiaro per i campi */
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 8px !important;
+        }
+        
+        /* Testo scuro dentro gli input per massima leggibilità */
+        input, select, textarea, div[data-baseweb="select"] span {
+            background-color: transparent !important;
+            color: #0f172a !important; /* Testo scuro/nero */
+            font-weight: 600 !important;
+        }
+        
+        /* Placeholder grigio scuro */
+        input::placeholder, textarea::placeholder {
+            color: #64748b !important;
+        }
+        
+        /* Colore icona calendario scura */
+        div[data-baseweb="icon"] svg {
+            fill: #0f172a !important;
+            color: #0f172a !important;
+        }
+        
         /* Banner Installazione stile Apple Glass */
         .pwa-banner {
             background: rgba(255, 255, 255, 0.05);
@@ -48,7 +77,7 @@ st.markdown("""
             box-shadow: 0 4px 6px rgba(0,0,0,0.15);
         }
 
-        /* Pulsante Primario - Rosso FIT */
+        /* Pulsante Primario */
         div.stButton > button[kind="primary"],
         div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
             background: linear-gradient(to right, #e63946, #b01e28) !important;
@@ -59,7 +88,7 @@ st.markdown("""
             box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3) !important;
         }
 
-        /* Pulsante Secondario - Blu ENDU Outline */
+        /* Pulsante Secondario */
         div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {
             background-color: rgba(41, 151, 255, 0.1) !important;
             color: #2997ff !important;
@@ -67,7 +96,7 @@ st.markdown("""
             border-radius: 50px !important;
         }
 
-        /* Expanders (I box degli esercizi) - Effetto Vetro */
+        /* Expanders */
         div[data-testid="stExpander"] {
             background-color: rgba(255, 255, 255, 0.03) !important;
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -81,30 +110,16 @@ st.markdown("""
             font-weight: bold !important;
         }
         div[data-testid="stExpander"] svg {
-            color: #2997ff !important; /* Freccetta blu */
+            color: #2997ff !important;
         }
 
-        /* Input Fields (Numeri, Testi, Select) */
-        div[data-baseweb="input"] > div,
-        div[data-baseweb="select"] > div,
-        div[data-baseweb="textarea"] > div,
-        div[data-baseweb="base-input"] {
-            background-color: rgba(255, 255, 255, 0.05) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            color: white !important;
-            border-radius: 10px !important;
-        }
-        input, textarea, select {
-            color: white !important;
-        }
-        
-        /* Tabs (Dashboard / Scheda) */
+        /* Tabs */
         button[data-baseweb="tab"] p {
             font-weight: bold !important;
             color: rgba(255,255,255,0.5) !important;
         }
         button[data-baseweb="tab"][aria-selected="true"] p {
-            color: #2997ff !important; /* Tab attivo Blu */
+            color: #2997ff !important;
         }
         div[data-baseweb="tab-highlight"] {
             background-color: #2997ff !important;
@@ -117,6 +132,7 @@ st.markdown("""
             .pwa-banner { display: none !important; }
         }
     </style>
+    
     <div class="pwa-banner">
         📲 <b style="color: white;">Salva l'app sul telefono!</b><br><br>
         Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
