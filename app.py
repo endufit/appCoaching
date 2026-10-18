@@ -372,9 +372,33 @@ with tab_dash:
         st.divider()
         st.subheader("Volume sollevato nel tempo 📈")
         if "Data" in df_stat.columns:
+            import altair as alt
+            
+            # Raggruppa i dati per data
             vol_time = df_stat.groupby("Data")[col_tonn].sum().reset_index()
-            vol_time = vol_time.set_index("Data")
-            st.line_chart(vol_time, color="#e63946")
+            
+            # Creiamo un grafico premium personalizzato
+            grafico = alt.Chart(vol_time).mark_line(
+                color="#e63946", # Linea Rossa FIT
+                strokeWidth=4, 
+                point=alt.OverlayMarkDef(color="#2997ff", size=150, filled=True, opacity=1) # Pallini Blu ENDU
+            ).encode(
+                x=alt.X("Data:N", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10)),
+                y=alt.Y(f"{col_tonn}:Q", title="Volume Sollevato (kg)"),
+                tooltip=[alt.Tooltip("Data:N", title="Data"), alt.Tooltip(f"{col_tonn}:Q", title="Kg Totali")]
+            ).configure(
+                background='#050A18' # Sfondo esatto del sito
+            ).configure_axis(
+                gridColor="rgba(255,255,255,0.08)", # Griglia bianca leggerissima
+                domainColor="rgba(255,255,255,0.2)",
+                labelColor="rgba(255,255,255,0.7)", # Testi chiari
+                titleColor="#ffffff"
+            ).configure_view(
+                strokeWidth=0 # Rimuove i bordi del grafico
+            )
+            
+            # ATTENZIONE: theme=None è la magia che impedisce a Streamlit di rimetterlo bianco!
+            st.altair_chart(grafico, use_container_width=True, theme=None)
 
 
 # ==========================================
