@@ -139,6 +139,11 @@ st.markdown("""
         }
     </style>
     
+    <!-- ⚠️ NUOVO: LOGO ENDUFIT IN ALTO ⚠️ -->
+    <div style="text-align: center; margin-top: -20px; margin-bottom: 25px;">
+        <span style="color: #2997ff; font-size: 42px; font-weight: 900; letter-spacing: -2px;">ENDU</span><span style="color: #e63946; font-size: 42px; font-weight: 300; letter-spacing: -2px;">FIT</span>
+    </div>
+    
     <div class="pwa-banner">
         📲 <b style="color: white;">Salva l'app sul telefono!</b><br><br>
         Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
