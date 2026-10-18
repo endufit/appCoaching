@@ -109,10 +109,13 @@ st.markdown("""
             color: #ffffff !important;
             font-weight: bold !important;
         }
-        /* ⚠️ FIX: Freccette bianche ⚠️ */
-        div[data-testid="stExpander"] svg {
+        /* FORZA LE FRECCETTE A ESSERE BIANCHE */
+        div[data-testid="stExpander"] summary svg,
+        div[data-testid="stExpander"] summary svg path,
+        div[data-testid="stExpander"] summary svg polygon {
             color: #ffffff !important;
-            fill: #ffffff !important; 
+            fill: #ffffff !important;
+            stroke: #ffffff !important;
         }
 
         /* Tabs */
