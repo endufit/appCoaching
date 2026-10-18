@@ -17,44 +17,99 @@ st.set_page_config(
 # 2. INIZIALIZZA IL CONTROLLER DEI COOKIE
 controller = CookieController()
 
-# --- TEMA BLU, BIANCO E ROSSO + BANNER INSTALLAZIONE ---
+# --- TEMA ENDUFIT: SFONDO SCURO, GLASSMORPHISM, BLU E ROSSO ---
 st.markdown("""
     <style>
-        .stApp {
-            background-color: #ffffff;
-            color: #0f172a;
+        /* Sfondo principale e Topbar */
+        .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+            background-color: #050A18 !important;
+            color: #ffffff !important;
         }
-        h1, h2, h3, h4, label {
-            color: #1e3a8a !important;
+        
+        /* Colore testi globali */
+        h1, h2, h3, h4, h5, label, p, span, div {
+            color: #ffffff !important;
         }
+        p { color: rgba(255,255,255,0.7) !important; }
+
+        /* Banner Installazione stile Apple Glass */
         .pwa-banner {
-            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: white !important;
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 16px;
             margin-bottom: 20px;
             font-size: 14px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
             text-align: center;
-            border-left: 6px solid #e52d27;
+            border-left: 4px solid #2997ff; /* Blu ENDU */
+            border-right: 4px solid #e63946; /* Rosso FIT */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
         }
+
+        /* Pulsante Primario - Rosso FIT */
         div.stButton > button[kind="primary"],
         div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
-            background-color: #e52d27 !important;
+            background: linear-gradient(to right, #e63946, #b01e28) !important;
             color: white !important;
             border: none !important;
+            border-radius: 50px !important;
+            font-weight: bold !important;
+            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3) !important;
+        }
+
+        /* Pulsante Secondario - Blu ENDU Outline */
+        div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {
+            background-color: rgba(41, 151, 255, 0.1) !important;
+            color: #2997ff !important;
+            border: 1px solid rgba(41, 151, 255, 0.4) !important;
+            border-radius: 50px !important;
+        }
+
+        /* Expanders (I box degli esercizi) - Effetto Vetro */
+        div[data-testid="stExpander"] {
+            background-color: rgba(255, 255, 255, 0.03) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 16px !important;
+        }
+        div[data-testid="stExpander"] summary {
+            background-color: transparent !important;
+        }
+        div[data-testid="stExpander"] summary p {
+            color: #ffffff !important;
             font-weight: bold !important;
         }
-        div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {
-            background-color: #1e3a8a !important;
+        div[data-testid="stExpander"] svg {
+            color: #2997ff !important; /* Freccetta blu */
+        }
+
+        /* Input Fields (Numeri, Testi, Select) */
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="textarea"] > div,
+        div[data-baseweb="base-input"] {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             color: white !important;
-            border: none !important;
+            border-radius: 10px !important;
         }
-        div[data-testid="stExpander"] {
-            border: 1px solid #1e3a8a !important;
-            border-radius: 8px !important;
-            background-color: #f8fafc !important;
+        input, textarea, select {
+            color: white !important;
         }
+        
+        /* Tabs (Dashboard / Scheda) */
+        button[data-baseweb="tab"] p {
+            font-weight: bold !important;
+            color: rgba(255,255,255,0.5) !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] p {
+            color: #2997ff !important; /* Tab attivo Blu */
+        }
+        div[data-baseweb="tab-highlight"] {
+            background-color: #2997ff !important;
+        }
+
         @media all and (display-mode: standalone) {
             .pwa-banner { display: none !important; }
         }
@@ -303,7 +358,7 @@ with tab_dash:
         if "Data" in df_stat.columns:
             vol_time = df_stat.groupby("Data")[col_tonn].sum().reset_index()
             vol_time = vol_time.set_index("Data")
-            st.line_chart(vol_time, color="#e52d27")
+            st.line_chart(vol_time, color="#e63946")
 
 
 # ==========================================
@@ -370,7 +425,7 @@ with tab_workout:
                             st.markdown(
                                 f"<div style='text-align: center; margin-bottom: 15px;'>"
                                 f"<a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' "
-                                f"target='_blank' style='text-decoration: none; font-size: 14px; font-weight: bold; color: #e52d27;'>"
+                                f"target='_blank' style='text-decoration: none; font-size: 14px; font-weight: bold; color: #e63946;'>"
                                 f"🎥 Cerca Tutorial YouTube</a></div>", 
                                 unsafe_allow_html=True
                             )
