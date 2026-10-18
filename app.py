@@ -27,7 +27,7 @@ st.markdown("""
         }
         
         /* 2. Colore testi globali */
-        h1, h2, h3, h4, h5, label, p, span, div {
+        h1, h2, h3, h4, h5, label, p, span {
             color: #ffffff !important;
         }
         p { color: rgba(255,255,255,0.7) !important; }
@@ -127,3 +127,31 @@ st.markdown("""
         Tocca l'icona di condivisione ( 📤 ) e seleziona <b style="color: #2997ff;">"Aggiungi alla schermata Home"</b> per usare l'app a schermo intero.
     </div>
 """, unsafe_allow_html=True)
+
+# --- 1. AUTENTICAZIONE GOOGLE ---
+try:
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+    client = gspread.authorize(credentials)
+except Exception as e:
+    st.error("Errore di autenticazione con Google. Controlla le chiavi segrete.")
+    st.stop()
+
+# --- 2. RECUPERO ID FOGLIO (AUTOMATICO DA URL O MEMORIA) ---
+id_foglio = st.query_params.get("id")
+
+if id_foglio:
+    controller.set("id_salvato", id_foglio, max_age=31536000)
+else:
+    id_foglio = controller.get("id_salvato")
+
+if not id_foglio:
+    st.info("🔄 Sincronizzazione scheda in corso...")
+    st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 12px;'>Se la schermata rimane bloccata, assicurati di aver aperto il link originale inviato dal coach almeno una volta.</p>", unsafe_allow_html=True)
+    st.stop()
+
+try:
+    spreadsheet = client.open_by_key(id_foglio)
+except Exception as e:
+    st.error(f"Impossibile accedere al foglio. Dettagli: {e}")
+    st
