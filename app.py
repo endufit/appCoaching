@@ -460,14 +460,14 @@ with tab_dash:
             # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart a Tonnellaggio) ---
             st.write("**Distribuzione Carico (Tonnellaggio)**")
             
-            # Categorie aggiornate come richiesto
+            # Dizionario ampliato per riconoscere quasi ogni variante di nome
             mappa_muscoli = {
-                "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegamenti": "Petto",
-                "lat machine": "Schiena", "trazioni": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull": "Schiena", "row": "Schiena",
-                "squat": "Gambe", "pressa": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affondi": "Gambe", "polpacci": "Gambe", "stacco": "Gambe", "calf": "Gambe",
-                "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoidi": "Spalle",
-                "curl": "Bicipiti",
-                "french": "Tricipiti", "tricipiti": "Tricipiti", "pushdown": "Tricipiti", "kickback": "Tricipiti"
+                "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegament": "Petto", "pectoral": "Petto",
+                "lat machine": "Schiena", "trazion": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull": "Schiena", "row": "Schiena", "dorso": "Schiena", "schiena": "Schiena",
+                "squat": "Gambe", "pressa": "Gambe", "leg press": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affond": "Gambe", "polpacc": "Gambe", "stacco": "Gambe", "calf": "Gambe", "glute": "Gambe",
+                "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoid": "Spalle",
+                "curl": "Bicipiti", "bicipit": "Bicipiti", "bicep": "Bicipiti",
+                "french": "Tricipiti", "tricipit": "Tricipiti", "pushdown": "Tricipiti", "kickback": "Tricipiti", "tricep": "Tricipiti", "extension": "Tricipiti"
             }
             
             def assegna_muscolo(es):
