@@ -460,16 +460,14 @@ with tab_dash:
             # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart a Tonnellaggio) ---
             st.write("**Distribuzione Carico (Tonnellaggio)**")
             
-            # Dizionario esteso per la categorizzazione automatica
+            # Categorie aggiornate come richiesto
             mappa_muscoli = {
                 "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegamenti": "Petto",
-                "lat machine": "Dorso", "trazioni": "Dorso", "rematore": "Dorso", "pulley": "Dorso", "pull": "Dorso", "row": "Dorso",
+                "lat machine": "Schiena", "trazioni": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull": "Schiena", "row": "Schiena",
                 "squat": "Gambe", "pressa": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affondi": "Gambe", "polpacci": "Gambe", "stacco": "Gambe", "calf": "Gambe",
                 "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoidi": "Spalle",
                 "curl": "Bicipiti",
-                "french": "Tricipiti", "tricipiti": "Tricipiti", "pushdown": "Tricipiti", "kickback": "Tricipiti",
-                "addominali": "Core", "crunch": "Core", "plank": "Core", "addome": "Core",
-                "corsa": "Cardio", "bici": "Cardio", "vogatore": "Cardio", "tapis": "Cardio"
+                "french": "Tricipiti", "tricipiti": "Tricipiti", "pushdown": "Tricipiti", "kickback": "Tricipiti"
             }
             
             def assegna_muscolo(es):
@@ -480,7 +478,7 @@ with tab_dash:
 
             df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
             
-            # Troviamo la colonna "Tonnellaggi" per sommare i carichi effettivi (Kg x Ripetizioni, già calcolato nel form)
+            # Estraiamo e puliamo la colonna dei Tonnellaggi in modo sicuro
             col_tonn = next((col for col in df_stat.columns if "tonnellagg" in str(col).lower()), None)
             if col_tonn:
                 df_stat["Tonn_num"] = pd.to_numeric(df_stat[col_tonn].astype(str).replace(",", ".", regex=True), errors="coerce").fillna(0)
@@ -489,22 +487,38 @@ with tab_dash:
                 
             # Sommiamo il tonnellaggio totale per ogni gruppo muscolare
             df_muscoli = df_stat.groupby("Gruppo")["Tonn_num"].sum().reset_index(name="Tonnellaggio Totale")
-            
-            # Rimuoviamo i gruppi con tonnellaggio a 0 (es. esercizi a corpo libero dove non si sono segnati i kg)
             df_muscoli = df_muscoli[df_muscoli["Tonnellaggio Totale"] > 0]
             
             if not df_muscoli.empty:
-                ciambella = alt.Chart(df_muscoli).mark_arc(innerRadius=40, stroke="#050A18", strokeWidth=2).encode(
-                    theta=alt.Theta(field="Tonnellaggio Totale", type="quantitative"),
-                    color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)")),
-                    tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Tonnellaggio Totale:Q", format=".0f", title="Kg Totali Morsi")]
-                ).properties(
-                    height=250
-                ).configure_view(strokeWidth=0).configure(background='transparent')
+                # 1. Calcoliamo la percentuale per ogni gruppo
+                totale_carico = df_muscoli["Tonnellaggio Totale"].sum()
+                df_muscoli["Percentuale"] = (df_muscoli["Tonnellaggio Totale"] / totale_carico) * 100
                 
-                st.altair_chart(ciambella, use_container_width=True)
+                # Creiamo l'etichetta visiva (es. "45%"). Nascondiamo le scritte per fette piccolissime (<3%) per non accavallarle
+                df_muscoli["Label"] = df_muscoli["Percentuale"].apply(lambda x: f"{x:.0f}%" if x >= 3 else "")
+                
+                # 2. Creiamo il grafico base
+                base_chart = alt.Chart(df_muscoli).encode(
+                    theta=alt.Theta(field="Tonnellaggio Totale", type="quantitative", stack=True),
+                    color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)"))
+                )
+                
+                # 3. Disegniamo l'anello colorato con il tooltip aggiornato ("Carico")
+                ciambella = base_chart.mark_arc(innerRadius=45, outerRadius=90, stroke="#050A18", strokeWidth=2).encode(
+                    tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Tonnellaggio Totale:Q", format=".0f", title="Carico")]
+                )
+                
+                # 4. Aggiungiamo il testo (le percentuali) posizionato all'esterno/bordo dell'anello
+                testo = base_chart.mark_text(radius=115, fill="white", size=11, fontWeight="bold").encode(
+                    text="Label:N"
+                )
+                
+                # Uniamo la ciambella e il testo in un unico grafico
+                grafico_finale = (ciambella + testo).properties(height=250).configure_view(strokeWidth=0).configure(background='transparent')
+                
+                st.altair_chart(grafico_finale, use_container_width=True)
             else:
-                st.info("Nessun tonnellaggio registrato (forse sono stati inseriti allenamenti a corpo libero senza peso).")
+                st.info("Nessun carico registrato.")
                 
 # ==========================================
 # SEZIONE 2: SCHEDA DI ALLENAMENTO
