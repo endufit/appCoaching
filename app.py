@@ -458,8 +458,8 @@ with tab_dash:
                 st.info("Nessun dato RPE registrato.")
 
         with col_graf_2:
-            # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart) ---
-            st.write("**Distribuzione Volume**")
+            # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart a Tonnellaggio) ---
+            st.write("**Distribuzione Carico (Tonnellaggio)**")
             
             mappa_muscoli = {
                 "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto",
@@ -479,17 +479,31 @@ with tab_dash:
                 return "Altro"
 
             df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
-            df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie")
             
-            ciambella = alt.Chart(df_muscoli).mark_arc(innerRadius=40, stroke="#050A18", strokeWidth=2).encode(
-                theta=alt.Theta(field="Serie", type="quantitative"),
-                color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)")),
-                tooltip=["Gruppo", "Serie"]
-            ).properties(
-                height=250
-            ).configure_view(strokeWidth=0).configure(background='transparent')
+            # Estraiamo e puliamo la colonna dei Tonnellaggi in modo sicuro
+            col_tonn = next((col for col in df_stat.columns if "tonnellagg" in str(col).lower()), None)
+            if col_tonn:
+                df_stat["Tonn_num"] = pd.to_numeric(df_stat[col_tonn].astype(str).replace(",", ".", regex=True), errors="coerce").fillna(0)
+            else:
+                df_stat["Tonn_num"] = 0
+                
+            # Sommiamo i chili totali per ogni gruppo muscolare
+            df_muscoli = df_stat.groupby("Gruppo")["Tonn_num"].sum().reset_index(name="Tonnellaggio Totale")
+            # Escludiamo i gruppi muscolari con 0 kg (es. allenamenti a corpo libero senza peso segnato)
+            df_muscoli = df_muscoli[df_muscoli["Tonnellaggio Totale"] > 0]
             
-            st.altair_chart(ciambella, use_container_width=True)
+            if not df_muscoli.empty:
+                ciambella = alt.Chart(df_muscoli).mark_arc(innerRadius=40, stroke="#050A18", strokeWidth=2).encode(
+                    theta=alt.Theta(field="Tonnellaggio Totale", type="quantitative"),
+                    color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)")),
+                    tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Tonnellaggio Totale:Q", format=".0f", title="Kg Totali")]
+                ).properties(
+                    height=250
+                ).configure_view(strokeWidth=0).configure(background='transparent')
+                
+                st.altair_chart(ciambella, use_container_width=True)
+            else:
+                st.info("Nessun carico registrato per generare il grafico.")
 
         st.divider()
         
