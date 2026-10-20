@@ -157,6 +157,38 @@ st.markdown("""
         📲 <b style="color: white;">Salva l'app sul telefono!</b><br><br>
         Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
     </div>
+    
+    <!-- SCRIPT PER FORZARE L'ICONA PERSONALIZZATA SU IOS E ANDROID -->
+    <script>
+        const iconUrl = "INCOLLA_QUI_LA_TUA_STRINGA_BASE64_QUADRATA"; 
+
+        // 1. Aggiunge l'icona per i dispositivi Apple (iPhone/iPad)
+        let appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+        if (!appleTouchIcon) {
+            appleTouchIcon = document.createElement('link');
+            appleTouchIcon.rel = 'apple-touch-icon';
+            document.head.appendChild(appleTouchIcon);
+        }
+        appleTouchIcon.href = iconUrl;
+
+        // 2. Modifica il Web App Manifest dinamico di Streamlit per Android
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+            fetch(manifestLink.href)
+                .then(response => response.json())
+                .then(manifest => {
+                    manifest.icons = [
+                        { src: iconUrl, sizes: "192x192", type: "image/png" },
+                        { src: iconUrl, sizes: "512x512", type: "image/png" }
+                    ];
+                    const stringManifest = JSON.stringify(manifest);
+                    const blob = new Blob([stringManifest], {type: 'application/json'});
+                    const manifestURL = URL.createObjectURL(blob);
+                    manifestLink.href = manifestURL;
+                })
+                .catch(err => console.log('Errore manifest', err));
+        }
+    </script>
 """, unsafe_allow_html=True)
 
 # --- 1. AUTENTICAZIONE GOOGLE ---
@@ -409,7 +441,7 @@ with tab_dash:
         import altair as alt
 
         # --- 1. HEATMAP DELLA COSTANZA (Stile GitHub) ---
-        st.subheader("Costanza di Allenamento 🔥")
+        st.subheader("Costanza di Allenamento")
         st.markdown("<p style='font-size: 13px;'>Ogni quadrato rappresenta un giorno. Più è scuro, maggiore è il volume (serie) completato.</p>", unsafe_allow_html=True)
         
         df_giorni = df_stat.groupby("Data_dt").size().reset_index(name="Volume (Serie)")
