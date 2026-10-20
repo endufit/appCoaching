@@ -375,85 +375,164 @@ tab_dash, tab_workout = st.tabs(["📊 Dashboard", "🏋️‍♂️ Scheda Alle
 # SEZIONE 1: DASHBOARD
 # ==========================================
 with tab_dash:
-    st.header("I Tuoi Progressi 🚀")
+    st.header("Dashboard Analitica 🚀")
     
     if df_storico.empty:
-        st.info("Non ci sono ancora dati registrati. Inizia ad allenarti per sbloccare i grafici!")
+        st.info("Nessun dato registrato. Inizia ad allenarti per sbloccare le metriche avanzate!")
     else:
         df_stat = df_storico.copy()
         
-        # 1. KPI Generali 
-        tot_allenamenti = df_stat["Data"].nunique() if "Data" in df_stat.columns else 0
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Allenamenti Completati", tot_allenamenti)
-        
+        # --- PREPARAZIONE DATI ---
+        # 1. Convertiamo le date
         if "Data" in df_stat.columns:
-            ultima_data = df_stat["Data"].max()
-            c2.metric("Ultimo Allenamento", str(ultima_data))
+            df_stat["Data_dt"] = pd.to_datetime(df_stat["Data"], format="%Y-%m-%d", errors="coerce")
+            df_stat = df_stat.dropna(subset=["Data_dt"])
+            
+        # 2. Estrazione sicura dell'RPE (solitamente è la 7a colonna salvata)
+        col_rpe = "RPE" if "RPE" in df_stat.columns else (df_stat.columns[6] if len(df_stat.columns) >= 7 else None)
+        if col_rpe:
+            df_stat["RPE_num"] = pd.to_numeric(df_stat[col_rpe].astype(str).replace(",", ".", regex=True), errors="coerce").fillna(0)
+        else:
+            df_stat["RPE_num"] = 0
+
+        # --- KPI GENERALI ---
+        tot_allenamenti = df_stat["Data"].nunique() if "Data" in df_stat.columns else 0
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Allenamenti", tot_allenamenti)
+        if "Data" in df_stat.columns:
+            c2.metric("Ultima Sessione", df_stat["Data"].max())
+        c3.metric("RPE Medio", f"{df_stat['RPE_num'].mean():.1f}/10" if col_rpe else "N/D")
         
         st.divider()
+
+        import altair as alt
+
+        # --- 1. HEATMAP DELLA COSTANZA (Stile GitHub) ---
+        st.subheader("Costanza di Allenamento 🔥")
+        st.markdown("<p style='font-size: 13px;'>Ogni quadrato rappresenta un giorno. Più è scuro, maggiore è il volume (serie) completato.</p>", unsafe_allow_html=True)
         
-        # 2. PROGRESSIONE SUI SINGOLI ESERCIZI (Molto più utile)
+        df_giorni = df_stat.groupby("Data_dt").size().reset_index(name="Volume (Serie)")
+        
+        heatmap = alt.Chart(df_giorni).mark_rect(rx=4, ry=4).encode(
+            x=alt.X("yearweek(Data_dt):O", title="Settimana dell'anno", axis=alt.Axis(labelAngle=0, labelColor="rgba(255,255,255,0.5)")),
+            y=alt.Y("day(Data_dt):O", title="", axis=alt.Axis(labelColor="rgba(255,255,255,0.7)")),
+            color=alt.Color("Volume (Serie):Q", scale=alt.Scale(scheme="blues"), legend=None),
+            tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b %Y"), alt.Tooltip("Volume (Serie):Q", title="Serie Totali")]
+        ).properties(
+            height=180
+        ).configure_view(
+            strokeWidth=0
+        ).configure_axis(
+            grid=False, domain=False
+        ).configure(background='transparent')
+        
+        st.altair_chart(heatmap, use_container_width=True)
+
+        st.divider()
+
+        # --- LAYOUT A DUE COLONNE PER RPE E GRUPPI MUSCOLARI ---
+        col_graf_1, col_graf_2 = st.columns(2)
+
+        with col_graf_1:
+            # --- 2. MONITORAGGIO RPE ---
+            st.write("**Fatica Percepita (RPE)**")
+            if col_rpe and df_stat["RPE_num"].sum() > 0:
+                df_rpe_trend = df_stat.groupby("Data_dt")["RPE_num"].mean().reset_index()
+                
+                grafico_rpe = alt.Chart(df_rpe_trend).mark_line(
+                    color="#e63946", strokeWidth=3, point=alt.OverlayMarkDef(color="#ffffff", size=60, filled=True)
+                ).encode(
+                    x=alt.X("Data_dt:T", title="", axis=alt.Axis(labelAngle=-45, format="%d %b")),
+                    y=alt.Y("RPE_num:Q", title="RPE (0-10)", scale=alt.Scale(domain=[0, 10])),
+                    tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b"), alt.Tooltip("RPE_num:Q", title="RPE", format=".1f")]
+                ).properties(
+                    height=250
+                ).configure_view(strokeWidth=0).configure_axis(
+                    gridColor="rgba(255,255,255,0.1)", domain=False, labelColor="rgba(255,255,255,0.7)"
+                ).configure(background='transparent')
+                
+                st.altair_chart(grafico_rpe, use_container_width=True)
+            else:
+                st.info("Nessun dato RPE registrato.")
+
+        with col_graf_2:
+            # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart) ---
+            st.write("**Distribuzione Volume**")
+            
+            # Dizionario per mappare gli esercizi ai gruppi muscolari (puoi aggiungerne altri)
+            mappa_muscoli = {
+                "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto",
+                "lat machine": "Dorso", "trazioni": "Dorso", "rematore": "Dorso", "pulley": "Dorso", "pull": "Dorso",
+                "squat": "Gambe", "pressa": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affondi": "Gambe", "polpacci": "Gambe",
+                "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle",
+                "curl": "Bicipiti",
+                "french": "Tricipiti", "tricipiti": "Tricipiti", "pushdown": "Tricipiti",
+                "addominali": "Core", "crunch": "Core", "plank": "Core",
+                "corsa": "Cardio", "bici": "Cardio", "vogatore": "Cardio"
+            }
+            
+            def assegna_muscolo(es):
+                es_lower = str(es).lower()
+                for chiave, muscolo in mappa_muscoli.items():
+                    if chiave in es_lower: return muscolo
+                return "Altro"
+
+            df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
+            df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie")
+            
+            # Grafico a ciambella
+            ciambella = alt.Chart(df_muscoli).mark_arc(innerRadius=40, stroke="#050A18", strokeWidth=2).encode(
+                theta=alt.Theta(field="Serie", type="quantitative"),
+                color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)")),
+                tooltip=["Gruppo", "Serie"]
+            ).properties(
+                height=250
+            ).configure_view(strokeWidth=0).configure(background='transparent')
+            
+            st.altair_chart(ciambella, use_container_width=True)
+
+        st.divider()
+        
+        # --- 4. PROGRESSIONE SUI SINGOLI ESERCIZI (Il grafico originale) ---
         st.subheader("Progressione Carichi 📈")
         st.markdown("<p style='font-size: 14px;'>Seleziona un esercizio per vedere come è migliorata la tua forza nel tempo.</p>", unsafe_allow_html=True)
         
         if "Esercizio" in df_stat.columns and "Kg Sollevati" in df_stat.columns:
-            # Puliamo la colonna dei Kg in caso l'utente abbia inserito la virgola invece del punto
             df_stat["Kg_puliti"] = pd.to_numeric(df_stat["Kg Sollevati"].astype(str).replace(",", ".", regex=True), errors='coerce').fillna(0)
-            
-            # Filtriamo solo le serie in cui è stato sollevato un peso effettivo
             df_validi = df_stat[df_stat["Kg_puliti"] > 0]
-            
             esercizi_svolti = sorted(df_validi["Esercizio"].unique().tolist())
             
             if esercizi_svolti:
-                # Menu a tendina elegante per scegliere l'esercizio
                 es_selezionato = st.selectbox("Scegli un esercizio", esercizi_svolti, label_visibility="collapsed")
-                
-                # Filtra i dati per l'esercizio scelto
                 df_es = df_validi[df_validi["Esercizio"] == es_selezionato]
-                
-                # Trova il massimale assoluto (Personal Best)
                 pb_assoluto = df_es["Kg_puliti"].max()
                 
-                # Badge visivo per il PB
                 st.markdown(f"""
-                    <div style='background: rgba(230, 57, 70, 0.1); border: 1px solid rgba(230, 57, 70, 0.3); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px;'>
+                    <div style='background: rgba(41, 151, 255, 0.1); border: 1px solid rgba(41, 151, 255, 0.3); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px;'>
                         <span style='font-size: 13px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px;'>Personal Best (1RM Testato)</span><br>
-                        <span style='color: #e63946; font-size: 28px; font-weight: 900;'>{pb_assoluto:g} <span style='font-size: 16px;'>kg</span></span>
+                        <span style='color: #2997ff; font-size: 28px; font-weight: 900;'>{pb_assoluto:g} <span style='font-size: 16px;'>kg</span></span>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Calcola il carico massimo sollevato in ogni data per creare la curva di progressione
-                progressione = df_es.groupby("Data")["Kg_puliti"].max().reset_index()
+                progressione = df_es.groupby("Data_dt")["Kg_puliti"].max().reset_index()
                 
-                import altair as alt
-                # Grafico della progressione
                 grafico_prog = alt.Chart(progressione).mark_line(
-                    color="#2997ff", # Linea Blu ENDU
-                    strokeWidth=4, 
-                    point=alt.OverlayMarkDef(color="#e63946", size=150, filled=True, opacity=1) # Pallini Rossi FIT
+                    color="#2997ff", strokeWidth=4, 
+                    point=alt.OverlayMarkDef(color="#e63946", size=150, filled=True, opacity=1)
                 ).encode(
-                    x=alt.X("Data:N", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10)),
+                    x=alt.X("Data_dt:T", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10, format="%d %b")),
                     y=alt.Y("Kg_puliti:Q", title="Carico Massimo (kg)", scale=alt.Scale(zero=False, padding=10)),
-                    tooltip=[alt.Tooltip("Data:N", title="Data"), alt.Tooltip("Kg_puliti:Q", title="Carico (kg)")]
-                ).configure(
-                    background='#050A18'
+                    tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b"), alt.Tooltip("Kg_puliti:Q", title="Carico (kg)")]
+                ).properties(height=300).configure(
+                    background='transparent'
                 ).configure_axis(
-                    gridColor="rgba(255,255,255,0.08)",
-                    domainColor="rgba(255,255,255,0.2)",
-                    labelColor="rgba(255,255,255,0.7)",
-                    titleColor="#ffffff"
-                ).configure_view(
-                    strokeWidth=0
-                )
+                    gridColor="rgba(255,255,255,0.08)", domainColor="rgba(255,255,255,0.2)",
+                    labelColor="rgba(255,255,255,0.7)", titleColor="#ffffff"
+                ).configure_view(strokeWidth=0)
                 
-                st.altair_chart(grafico_prog, use_container_width=True, theme=None)
+                st.altair_chart(grafico_prog, use_container_width=True)
             else:
                 st.info("Registra dei carichi in allenamento per sbloccare le statistiche di progressione.")
-
-
 # ==========================================
 # SEZIONE 2: SCHEDA DI ALLENAMENTO
 # ==========================================
