@@ -390,8 +390,9 @@ with tab_dash:
         st.info("Nessun allenamento registrato. Inizia ad allenarti per sbloccare le metriche avanzate!")
     else:
         # --- PREPARAZIONE DATI ---
-        # Estrazione sicura dell'RPE
-        col_rpe = "RPE" if "RPE" in df_stat.columns else (df_stat.columns[6] if len(df_stat.columns) >= 7 else None)
+        # Trova la colonna RPE in modo intelligente, cercando la parola "rpe" nel titolo
+        col_rpe = next((col for col in df_stat.columns if "rpe" in str(col).lower()), None)
+        
         if col_rpe:
             df_stat["RPE_num"] = pd.to_numeric(df_stat[col_rpe].astype(str).replace(",", ".", regex=True), errors="coerce").fillna(0)
         else:
@@ -414,7 +415,8 @@ with tab_dash:
         
         df_giorni = df_stat.groupby("Data_dt").size().reset_index(name="Volume (Serie)")
         
-        heatmap = alt.Chart(df_giorni).mark_rect(rx=4, ry=4).encode(
+        # Rimosso rx e ry per massima compatibilità con Altair
+        heatmap = alt.Chart(df_giorni).mark_rect().encode(
             x=alt.X("yearweek(Data_dt):O", title="Settimana dell'anno", axis=alt.Axis(labelAngle=0, labelColor="rgba(255,255,255,0.5)")),
             y=alt.Y("day(Data_dt):O", title="", axis=alt.Axis(labelColor="rgba(255,255,255,0.7)")),
             color=alt.Color("Volume (Serie):Q", scale=alt.Scale(scheme="blues"), legend=None),
