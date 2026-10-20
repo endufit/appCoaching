@@ -493,47 +493,6 @@ with tab_dash:
 
         st.divider()
         
-        # --- 4. PROGRESSIONE SUI SINGOLI ESERCIZI ---
-        st.subheader("Progressione Carichi 📈")
-        st.markdown("<p style='font-size: 14px;'>Seleziona un esercizio per vedere come è migliorata la tua forza nel tempo.</p>", unsafe_allow_html=True)
-        
-        if "Esercizio" in df_stat.columns and "Kg Sollevati" in df_stat.columns:
-            df_stat["Kg_puliti"] = pd.to_numeric(df_stat["Kg Sollevati"].astype(str).replace(",", ".", regex=True), errors='coerce').fillna(0)
-            df_validi = df_stat[df_stat["Kg_puliti"] > 0]
-            esercizi_svolti = sorted(df_validi["Esercizio"].unique().tolist())
-            
-            if esercizi_svolti:
-                es_selezionato = st.selectbox("Scegli un esercizio", esercizi_svolti, label_visibility="collapsed", key="tendina_progressione_carichi")
-                df_es = df_validi[df_validi["Esercizio"] == es_selezionato]
-                pb_assoluto = df_es["Kg_puliti"].max()
-                
-                st.markdown(f"""
-                    <div style='background: rgba(41, 151, 255, 0.1); border: 1px solid rgba(41, 151, 255, 0.3); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px;'>
-                        <span style='font-size: 13px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px;'>Personal Best (1RM Testato)</span><br>
-                        <span style='color: #2997ff; font-size: 28px; font-weight: 900;'>{pb_assoluto:g} <span style='font-size: 16px;'>kg</span></span>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                progressione = df_es.groupby("Data_dt")["Kg_puliti"].max().reset_index()
-                
-                grafico_prog = alt.Chart(progressione).mark_line(
-                    color="#2997ff", strokeWidth=4, 
-                    point=alt.OverlayMarkDef(color="#e63946", size=150, filled=True, opacity=1)
-                ).encode(
-                    x=alt.X("Data_dt:T", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10, format="%d %b")),
-                    y=alt.Y("Kg_puliti:Q", title="Carico Massimo (kg)", scale=alt.Scale(zero=False, padding=10)),
-                    tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b"), alt.Tooltip("Kg_puliti:Q", title="Carico (kg)")]
-                ).properties(height=300).configure(
-                    background='transparent'
-                ).configure_axis(
-                    gridColor="rgba(255,255,255,0.08)", domainColor="rgba(255,255,255,0.2)",
-                    labelColor="rgba(255,255,255,0.7)", titleColor="#ffffff"
-                ).configure_view(strokeWidth=0)
-                
-                st.altair_chart(grafico_prog, use_container_width=True)
-            else:
-                st.info("Registra dei carichi in allenamento per sbloccare le statistiche di progressione.")
-
         with col_graf_2:
             # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart) ---
             st.write("**Distribuzione Volume**")
