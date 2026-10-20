@@ -263,17 +263,18 @@ riga_header = -1
 idx_es, idx_giorno = -1, -1
 idx_serie_coach, idx_rip_coach, idx_carico_coach, idx_recupero = -1, -1, -1, -1
 
+# 1. Ricerca robusta delle colonne (ignora spazi vuoti e maiuscole)
 for i, riga in enumerate(dati_programma):
-    if "Esercizio" in riga and "Giorno" in riga:
+    riga_pulita = [str(c).lower().strip() for c in riga]
+    if "esercizio" in riga_pulita and "giorno" in riga_pulita:
         riga_header = i
-        idx_es = riga.index("Esercizio")
-        idx_giorno = riga.index("Giorno")
+        idx_es = riga_pulita.index("esercizio")
+        idx_giorno = riga_pulita.index("giorno")
         
-        for j, col in enumerate(riga):
-            col_str = str(col).lower().strip()
-            if "serie" in col_str: idx_serie_coach = j
-            elif "rip" in col_str: idx_rip_coach = j
-            elif "kg" in col_str or "carico" in col_str or "peso" in col_str: idx_carico_coach = j
+        for j, col_str in enumerate(riga_pulita):
+            if "serie target" in col_str or "serie" in col_str: idx_serie_coach = j
+            elif "ripetizioni target" in col_str or "ripetizioni" in col_str or "rip" in col_str: idx_rip_coach = j
+            elif "carico" in col_str or "kg" in col_str or "peso" in col_str: idx_carico_coach = j
             elif "recupero" in col_str: idx_recupero = j
         break
 
@@ -285,27 +286,27 @@ esercizi_dict = {}
 giorni_disponibili = set()
 
 for riga in dati_programma[riga_header+1:]:
-    if len(riga) > max(idx_es, idx_giorno): 
-        nome = riga[idx_es].strip()
-        giorno = riga[idx_giorno].strip().upper()
-        
-        serie_coach = riga[idx_serie_coach].strip() if idx_serie_coach != -1 and len(riga) > idx_serie_coach else "?"
-        rip_coach = riga[idx_rip_coach].strip() if idx_rip_coach != -1 and len(riga) > idx_rip_coach else "?"
-        carico_coach = riga[idx_carico_coach].strip() if idx_carico_coach != -1 and len(riga) > idx_carico_coach else ""
-        recupero_coach = riga[idx_recupero].strip() if idx_recupero != -1 and len(riga) > idx_recupero else ""
-        
-        if nome != "":
-            if giorno not in esercizi_dict:
-                esercizi_dict[giorno] = []
-            esercizi_dict[giorno].append({
-                "nome": nome, 
-                "serie_coach": serie_coach,
-                "rip_coach": rip_coach,
-                "carico_coach": carico_coach,
-                "recupero_coach": recupero_coach
-            })
-            if giorno != "":
-                giorni_disponibili.add(giorno)
+    # 2. Estrazione sicura (evita che le celle vuote facciano saltare l'esercizio)
+    nome = str(riga[idx_es]).strip() if idx_es < len(riga) else ""
+    giorno = str(riga[idx_giorno]).strip().upper() if idx_giorno < len(riga) else ""
+    
+    serie_coach = str(riga[idx_serie_coach]).strip() if idx_serie_coach != -1 and idx_serie_coach < len(riga) else "?"
+    rip_coach = str(riga[idx_rip_coach]).strip() if idx_rip_coach != -1 and idx_rip_coach < len(riga) else "?"
+    carico_coach = str(riga[idx_carico_coach]).strip() if idx_carico_coach != -1 and idx_carico_coach < len(riga) else ""
+    recupero_coach = str(riga[idx_recupero]).strip() if idx_recupero != -1 and idx_recupero < len(riga) else ""
+    
+    if nome != "":
+        if giorno not in esercizi_dict:
+            esercizi_dict[giorno] = []
+        esercizi_dict[giorno].append({
+            "nome": nome, 
+            "serie_coach": serie_coach,
+            "rip_coach": rip_coach,
+            "carico_coach": carico_coach,
+            "recupero_coach": recupero_coach
+        })
+        if giorno != "":
+            giorni_disponibili.add(giorno)
 
 giorni_disponibili = sorted(list(giorni_disponibili))
 
@@ -316,7 +317,10 @@ for i, riga in enumerate(dati_storico):
         break
 
 if riga_header_storico != -1 and len(dati_storico) > riga_header_storico + 1:
-    df_storico = pd.DataFrame(dati_storico[riga_header_storico+1:], columns=dati_storico[riga_header_storico])
+    # Correggi l'estrazione dello storico, considerando che alcune righe potrebbero essere più corte dell'header
+    header_storico = dati_storico[riga_header_storico]
+    dati_storico_puliti = [riga + [""] * (len(header_storico) - len(riga)) for riga in dati_storico[riga_header_storico+1:]]
+    df_storico = pd.DataFrame(dati_storico_puliti, columns=header_storico)
 else:
     df_storico = pd.DataFrame()
 
@@ -354,7 +358,6 @@ def ottieni_testo_titolo(es_nome, serie_coach, rip_coach, carico_coach, recupero
             kg_finale = f"  •  Kg liberi"
             
     return f"{base_str}{kg_finale}{str_recupero}"
-
 
 # --- 6. INTERFACCIA A SCHEDE (TABS) ---
 tab_dash, tab_workout = st.tabs(["📊 Dashboard", "🏋️‍♂️ Scheda Allenamento"])
