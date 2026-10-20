@@ -193,6 +193,7 @@ st.markdown("""
                 }).catch(e => console.log('Errore manifest:', e));
         }
     </script>
+""", unsafe_allow_html=True)
 
 # --- 1. AUTENTICAZIONE GOOGLE ---
 try:
