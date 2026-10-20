@@ -381,7 +381,8 @@ with tab_dash:
     
     # Pulizia preliminare: convertiamo le date e togliamo eventuali righe vuote
     if not df_stat.empty and "Data" in df_stat.columns:
-        df_stat["Data_dt"] = pd.to_datetime(df_stat["Data"], format="%Y-%m-%d", errors="coerce")
+        # Rimuoviamo il "format" fisso e lasciamo che Pandas indovini il formato, specificando dayfirst=True per il formato europeo (GG/MM/AAAA)
+        df_stat["Data_dt"] = pd.to_datetime(df_stat["Data"], errors="coerce", dayfirst=True)
         df_stat = df_stat.dropna(subset=["Data_dt"])
         
     # Ora controlliamo SE sono rimasti dei dati validi dopo la pulizia
