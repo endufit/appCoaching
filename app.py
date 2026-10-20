@@ -158,38 +158,41 @@ st.markdown("""
         Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
     </div>
     
-    <!-- SCRIPT PER FORZARE L'ICONA PERSONALIZZATA SU IOS E ANDROID -->
+    <!-- SCRIPT AGGRESSIVO PER SOVRASCRIVERE LA CORONA DI STREAMLIT -->
     <script>
         const iconUrl = "INCOLLA_QUI_LA_TUA_STRINGA_BASE64_QUADRATA"; 
 
-        // 1. Aggiunge l'icona per i dispositivi Apple (iPhone/iPad)
-        let appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
-        if (!appleTouchIcon) {
-            appleTouchIcon = document.createElement('link');
-            appleTouchIcon.rel = 'apple-touch-icon';
-            document.head.appendChild(appleTouchIcon);
-        }
-        appleTouchIcon.href = iconUrl;
+        // 1. Elimina TUTTE le vecchie icone con la corona di Streamlit nascoste nel codice
+        document.querySelectorAll('link[rel="shortcut icon"], link[rel="icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
 
-        // 2. Modifica il Web App Manifest dinamico di Streamlit per Android
+        // 2. Forza la nuova icona per i dispositivi Apple (iPhone/iPad)
+        let appleTouchIcon = document.createElement('link');
+        appleTouchIcon.rel = 'apple-touch-icon';
+        appleTouchIcon.href = iconUrl;
+        document.head.appendChild(appleTouchIcon);
+
+        // 3. Forza la nuova icona standard per Android e browser
+        let favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        favicon.type = 'image/png';
+        favicon.href = iconUrl;
+        document.head.appendChild(favicon);
+
+        // 4. Sovrascrive il Manifest dinamico
         const manifestLink = document.querySelector('link[rel="manifest"]');
         if (manifestLink) {
             fetch(manifestLink.href)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(manifest => {
                     manifest.icons = [
                         { src: iconUrl, sizes: "192x192", type: "image/png" },
                         { src: iconUrl, sizes: "512x512", type: "image/png" }
                     ];
-                    const stringManifest = JSON.stringify(manifest);
-                    const blob = new Blob([stringManifest], {type: 'application/json'});
-                    const manifestURL = URL.createObjectURL(blob);
-                    manifestLink.href = manifestURL;
-                })
-                .catch(err => console.log('Errore manifest', err));
+                    const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+                    manifestLink.href = URL.createObjectURL(blob);
+                }).catch(e => console.log('Errore manifest:', e));
         }
     </script>
-""", unsafe_allow_html=True)
 
 # --- 1. AUTENTICAZIONE GOOGLE ---
 try:
