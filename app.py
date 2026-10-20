@@ -379,18 +379,17 @@ with tab_dash:
     
     df_stat = df_storico.copy() if not df_storico.empty else pd.DataFrame()
     
-    # Pulizia preliminare: convertiamo le date e togliamo eventuali righe vuote
+    # Pulizia preliminare: convertiamo le date (con dayfirst=True per leggere sia gg/mm che mm/gg) e togliamo righe vuote
     if not df_stat.empty and "Data" in df_stat.columns:
-        # Rimuoviamo il "format" fisso e lasciamo che Pandas indovini il formato, specificando dayfirst=True per il formato europeo (GG/MM/AAAA)
         df_stat["Data_dt"] = pd.to_datetime(df_stat["Data"], errors="coerce", dayfirst=True)
         df_stat = df_stat.dropna(subset=["Data_dt"])
         
-    # Ora controlliamo SE sono rimasti dei dati validi dopo la pulizia
+    # Controlliamo SE sono rimasti dei dati validi dopo la pulizia
     if df_stat.empty:
         st.info("Nessun allenamento registrato. Inizia ad allenarti per sbloccare le metriche avanzate!")
     else:
         # --- PREPARAZIONE DATI ---
-        # Trova la colonna RPE in modo intelligente, cercando la parola "rpe" nel titolo
+        # Trova la colonna RPE in modo intelligente, cercando la parola "rpe" nel titolo (evita l'errore 190/10)
         col_rpe = next((col for col in df_stat.columns if "rpe" in str(col).lower()), None)
         
         if col_rpe:
@@ -415,7 +414,7 @@ with tab_dash:
         
         df_giorni = df_stat.groupby("Data_dt").size().reset_index(name="Volume (Serie)")
         
-        # Rimosso rx e ry per massima compatibilità con Altair
+        # FIX Errore Rosso: Rimosso rx e ry per massima compatibilità con Altair
         heatmap = alt.Chart(df_giorni).mark_rect().encode(
             x=alt.X("yearweek(Data_dt):O", title="Settimana dell'anno", axis=alt.Axis(labelAngle=0, labelColor="rgba(255,255,255,0.5)")),
             y=alt.Y("day(Data_dt):O", title="", axis=alt.Axis(labelColor="rgba(255,255,255,0.7)")),
@@ -457,6 +456,83 @@ with tab_dash:
                 st.altair_chart(grafico_rpe, use_container_width=True)
             else:
                 st.info("Nessun dato RPE registrato.")
+
+        with col_graf_2:
+            # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart) ---
+            st.write("**Distribuzione Volume**")
+            
+            mappa_muscoli = {
+                "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto",
+                "lat machine": "Dorso", "trazioni": "Dorso", "rematore": "Dorso", "pulley": "Dorso", "pull": "Dorso",
+                "squat": "Gambe", "pressa": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affondi": "Gambe", "polpacci": "Gambe",
+                "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle",
+                "curl": "Bicipiti",
+                "french": "Tricipiti", "tricipiti": "Tricipiti", "pushdown": "Tricipiti",
+                "addominali": "Core", "crunch": "Core", "plank": "Core",
+                "corsa": "Cardio", "bici": "Cardio", "vogatore": "Cardio"
+            }
+            
+            def assegna_muscolo(es):
+                es_lower = str(es).lower()
+                for chiave, muscolo in mappa_muscoli.items():
+                    if chiave in es_lower: return muscolo
+                return "Altro"
+
+            df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
+            df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie")
+            
+            ciambella = alt.Chart(df_muscoli).mark_arc(innerRadius=40, stroke="#050A18", strokeWidth=2).encode(
+                theta=alt.Theta(field="Serie", type="quantitative"),
+                color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)")),
+                tooltip=["Gruppo", "Serie"]
+            ).properties(
+                height=250
+            ).configure_view(strokeWidth=0).configure(background='transparent')
+            
+            st.altair_chart(ciambella, use_container_width=True)
+
+        st.divider()
+        
+        # --- 4. PROGRESSIONE SUI SINGOLI ESERCIZI ---
+        st.subheader("Progressione Carichi 📈")
+        st.markdown("<p style='font-size: 14px;'>Seleziona un esercizio per vedere come è migliorata la tua forza nel tempo.</p>", unsafe_allow_html=True)
+        
+        if "Esercizio" in df_stat.columns and "Kg Sollevati" in df_stat.columns:
+            df_stat["Kg_puliti"] = pd.to_numeric(df_stat["Kg Sollevati"].astype(str).replace(",", ".", regex=True), errors='coerce').fillna(0)
+            df_validi = df_stat[df_stat["Kg_puliti"] > 0]
+            esercizi_svolti = sorted(df_validi["Esercizio"].unique().tolist())
+            
+            if esercizi_svolti:
+                es_selezionato = st.selectbox("Scegli un esercizio", esercizi_svolti, label_visibility="collapsed")
+                df_es = df_validi[df_validi["Esercizio"] == es_selezionato]
+                pb_assoluto = df_es["Kg_puliti"].max()
+                
+                st.markdown(f"""
+                    <div style='background: rgba(41, 151, 255, 0.1); border: 1px solid rgba(41, 151, 255, 0.3); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px;'>
+                        <span style='font-size: 13px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px;'>Personal Best (1RM Testato)</span><br>
+                        <span style='color: #2997ff; font-size: 28px; font-weight: 900;'>{pb_assoluto:g} <span style='font-size: 16px;'>kg</span></span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                progressione = df_es.groupby("Data_dt")["Kg_puliti"].max().reset_index()
+                
+                grafico_prog = alt.Chart(progressione).mark_line(
+                    color="#2997ff", strokeWidth=4, 
+                    point=alt.OverlayMarkDef(color="#e63946", size=150, filled=True, opacity=1)
+                ).encode(
+                    x=alt.X("Data_dt:T", title="", axis=alt.Axis(labelAngle=-45, labelPadding=10, format="%d %b")),
+                    y=alt.Y("Kg_puliti:Q", title="Carico Massimo (kg)", scale=alt.Scale(zero=False, padding=10)),
+                    tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b"), alt.Tooltip("Kg_puliti:Q", title="Carico (kg)")]
+                ).properties(height=300).configure(
+                    background='transparent'
+                ).configure_axis(
+                    gridColor="rgba(255,255,255,0.08)", domainColor="rgba(255,255,255,0.2)",
+                    labelColor="rgba(255,255,255,0.7)", titleColor="#ffffff"
+                ).configure_view(strokeWidth=0)
+                
+                st.altair_chart(grafico_prog, use_container_width=True)
+            else:
+                st.info("Registra dei carichi in allenamento per sbloccare le statistiche di progressione.")
 
         with col_graf_2:
             # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart) ---
