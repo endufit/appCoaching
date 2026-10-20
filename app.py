@@ -160,12 +160,16 @@ except Exception as e:
     st.stop()
 
 # --- 2. RECUPERO ID FOGLIO (AUTOMATICO DA URL O MEMORIA) ---
-id_foglio = st.query_params.get("id")
+id_foglio_url = st.query_params.get("id")
+id_foglio_salvato = controller.get("id_salvato")
 
-if id_foglio:
-    controller.set("id_salvato", id_foglio, max_age=31536000)
+# Diamo priorità all'URL. Se c'è un ID nell'URL ed è diverso da quello salvato, aggiorniamo il cookie.
+if id_foglio_url:
+    id_foglio = id_foglio_url
+    if id_foglio_url != id_foglio_salvato:
+        controller.set("id_salvato", id_foglio_url, max_age=31536000)
 else:
-    id_foglio = controller.get("id_salvato")
+    id_foglio = id_foglio_salvato
 
 if not id_foglio:
     st.info("🔄 Sincronizzazione scheda in corso...")
