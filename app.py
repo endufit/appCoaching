@@ -377,18 +377,19 @@ tab_dash, tab_workout = st.tabs(["📊 Dashboard", "🏋️‍♂️ Scheda Alle
 with tab_dash:
     st.header("Dashboard Analitica 🚀")
     
-    if df_storico.empty:
-        st.info("Nessun dato registrato. Inizia ad allenarti per sbloccare le metriche avanzate!")
-    else:
-        df_stat = df_storico.copy()
+    df_stat = df_storico.copy() if not df_storico.empty else pd.DataFrame()
+    
+    # Pulizia preliminare: convertiamo le date e togliamo eventuali righe vuote
+    if not df_stat.empty and "Data" in df_stat.columns:
+        df_stat["Data_dt"] = pd.to_datetime(df_stat["Data"], format="%Y-%m-%d", errors="coerce")
+        df_stat = df_stat.dropna(subset=["Data_dt"])
         
+    # Ora controlliamo SE sono rimasti dei dati validi dopo la pulizia
+    if df_stat.empty:
+        st.info("Nessun allenamento registrato. Inizia ad allenarti per sbloccare le metriche avanzate!")
+    else:
         # --- PREPARAZIONE DATI ---
-        # 1. Convertiamo le date
-        if "Data" in df_stat.columns:
-            df_stat["Data_dt"] = pd.to_datetime(df_stat["Data"], format="%Y-%m-%d", errors="coerce")
-            df_stat = df_stat.dropna(subset=["Data_dt"])
-            
-        # 2. Estrazione sicura dell'RPE (solitamente è la 7a colonna salvata)
+        # Estrazione sicura dell'RPE
         col_rpe = "RPE" if "RPE" in df_stat.columns else (df_stat.columns[6] if len(df_stat.columns) >= 7 else None)
         if col_rpe:
             df_stat["RPE_num"] = pd.to_numeric(df_stat[col_rpe].astype(str).replace(",", ".", regex=True), errors="coerce").fillna(0)
@@ -396,11 +397,10 @@ with tab_dash:
             df_stat["RPE_num"] = 0
 
         # --- KPI GENERALI ---
-        tot_allenamenti = df_stat["Data"].nunique() if "Data" in df_stat.columns else 0
+        tot_allenamenti = df_stat["Data"].nunique()
         c1, c2, c3 = st.columns(3)
         c1.metric("Allenamenti", tot_allenamenti)
-        if "Data" in df_stat.columns:
-            c2.metric("Ultima Sessione", df_stat["Data"].max())
+        c2.metric("Ultima Sessione", df_stat["Data"].max())
         c3.metric("RPE Medio", f"{df_stat['RPE_num'].mean():.1f}/10" if col_rpe else "N/D")
         
         st.divider()
@@ -459,7 +459,6 @@ with tab_dash:
             # --- 3. SUDDIVISIONE GRUPPI MUSCOLARI (Pie Chart) ---
             st.write("**Distribuzione Volume**")
             
-            # Dizionario per mappare gli esercizi ai gruppi muscolari (puoi aggiungerne altri)
             mappa_muscoli = {
                 "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto",
                 "lat machine": "Dorso", "trazioni": "Dorso", "rematore": "Dorso", "pulley": "Dorso", "pull": "Dorso",
@@ -480,7 +479,6 @@ with tab_dash:
             df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
             df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie")
             
-            # Grafico a ciambella
             ciambella = alt.Chart(df_muscoli).mark_arc(innerRadius=40, stroke="#050A18", strokeWidth=2).encode(
                 theta=alt.Theta(field="Serie", type="quantitative"),
                 color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)")),
@@ -493,7 +491,7 @@ with tab_dash:
 
         st.divider()
         
-        # --- 4. PROGRESSIONE SUI SINGOLI ESERCIZI (Il grafico originale) ---
+        # --- 4. PROGRESSIONE SUI SINGOLI ESERCIZI ---
         st.subheader("Progressione Carichi 📈")
         st.markdown("<p style='font-size: 14px;'>Seleziona un esercizio per vedere come è migliorata la tua forza nel tempo.</p>", unsafe_allow_html=True)
         
@@ -533,6 +531,7 @@ with tab_dash:
                 st.altair_chart(grafico_prog, use_container_width=True)
             else:
                 st.info("Registra dei carichi in allenamento per sbloccare le statistiche di progressione.")
+                
 # ==========================================
 # SEZIONE 2: SCHEDA DI ALLENAMENTO
 # ==========================================
