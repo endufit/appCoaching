@@ -95,12 +95,21 @@ st.markdown("""
             box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3) !important;
         }
 
-        /* Pulsante Secondario */
-        div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {
-            background-color: rgba(41, 151, 255, 0.1) !important;
-            color: #2997ff !important;
-            border: 1px solid rgba(41, 151, 255, 0.4) !important;
+        /* Pulsante Secondario (Aggiungi Serie) */
+        div[data-testid="stFormSubmitButton"] > button[kind="secondary"],
+        div.stButton > button[kind="secondary"] {
+            background-color: #2997ff !important; /* Blu EnduFit */
+            color: white !important;
+            border: none !important;
             border-radius: 50px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 10px rgba(41, 151, 255, 0.3) !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        div[data-testid="stFormSubmitButton"] > button[kind="secondary"]:hover,
+        div.stButton > button[kind="secondary"]:hover {
+            background-color: #1a75d1 !important; /* Blu leggermente più scuro al passaggio del mouse */
         }
 
         /* Expanders */
