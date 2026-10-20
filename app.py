@@ -193,11 +193,11 @@ except Exception as e:
 
 # --- 4. SISTEMI DI CACHE ---
 @st.cache_data(ttl=300)
-def scarica_dati_fogli(_prog, _storico):
+def scarica_dati_fogli(id_atleta, _prog, _storico):
     return _prog.get_all_values(), _storico.get_all_values()
 
-dati_programma, dati_storico = scarica_dati_fogli(sheet_programma, sheet_storico)
-
+# Passiamo l'id_foglio così Streamlit separa la memoria per ogni atleta!
+dati_programma, dati_storico = scarica_dati_fogli(id_foglio, sheet_programma, sheet_storico)
 @st.cache_data(ttl=86400) 
 def cerca_immagine_esercizio(nome_esercizio):
     nome_lower = nome_esercizio.lower().strip()
