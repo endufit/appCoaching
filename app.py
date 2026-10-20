@@ -503,7 +503,7 @@ with tab_dash:
             esercizi_svolti = sorted(df_validi["Esercizio"].unique().tolist())
             
             if esercizi_svolti:
-                es_selezionato = st.selectbox("Scegli un esercizio", esercizi_svolti, label_visibility="collapsed")
+                es_selezionato = st.selectbox("Scegli un esercizio", esercizi_svolti, label_visibility="collapsed", key="tendina_progressione_carichi")
                 df_es = df_validi[df_validi["Esercizio"] == es_selezionato]
                 pb_assoluto = df_es["Kg_puliti"].max()
                 
