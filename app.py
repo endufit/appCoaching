@@ -110,9 +110,21 @@ st.markdown("""
             background-color: #1a75d1 !important; /* Blu leggermente più scuro al passaggio del mouse */
         }
         
-        div[data-testid="stFormSubmitButton"] > button[kind="secondary"]:hover,
-        div.stButton > button[kind="secondary"]:hover {
-            background-color: #1a75d1 !important; /* Blu leggermente più scuro al passaggio del mouse */
+        /* Pulsanti Secondari (Aggiungi / Rimuovi Serie) */
+        div[data-testid="stFormSubmitButton"] button:not([kind="primaryFormSubmit"]):not([kind="primary"]),
+        div.stButton > button:not([kind="primary"]) {
+            background-color: #2997ff !important; /* Blu EnduFit */
+            color: white !important;
+            border: none !important;
+            border-radius: 50px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 10px rgba(41, 151, 255, 0.3) !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        div[data-testid="stFormSubmitButton"] button:not([kind="primaryFormSubmit"]):not([kind="primary"]):hover,
+        div.stButton > button:not([kind="primary"]):hover {
+            background-color: #1a75d1 !important;
         }
 
         /* Expanders */
@@ -647,16 +659,26 @@ with tab_workout:
                             with c2:
                                 st.number_input("Kg", min_value=0.0, step=0.5, key=f"kg_{es}_{i}")
                         
-                        if st.form_submit_button(f"➕ Aggiungi Serie", key=f"btn_add_{es}"):
-                            idx_nuovo = st.session_state.contatore_serie[es]
-                            idx_vecchio = idx_nuovo - 1
-                            
-                            st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_vecchio}", 0)
-                            st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_vecchio}", 0.0)
-                            
-                            st.session_state.contatore_serie[es] += 1
-                            st.session_state.es_aperto = es
-                            st.rerun() 
+                        btn_col1, btn_col2 = st.columns(2)
+                        
+                        with btn_col1:
+                            if st.form_submit_button(f"➕ Aggiungi Serie", key=f"btn_add_{es}", use_container_width=True):
+                                idx_nuovo = st.session_state.contatore_serie[es]
+                                idx_vecchio = idx_nuovo - 1
+                                
+                                st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_vecchio}", 0)
+                                st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_vecchio}", 0.0)
+                                
+                                st.session_state.contatore_serie[es] += 1
+                                st.session_state.es_aperto = es
+                                st.rerun() 
+                                
+                        with btn_col2:
+                            if st.form_submit_button(f"➖ Rimuovi Serie", key=f"btn_rem_{es}", use_container_width=True):
+                                if st.session_state.contatore_serie[es] > 1:
+                                    st.session_state.contatore_serie[es] -= 1
+                                    st.session_state.es_aperto = es
+                                    st.rerun()
 
                 st.divider()
                 st.write("### Fine Allenamento")
