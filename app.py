@@ -96,8 +96,7 @@ st.markdown("""
         }
 
         /* Pulsante Secondario (Aggiungi Serie) */
-        div[data-testid="stFormSubmitButton"] > button[kind="secondary"],
-        div.stButton > button[kind="secondary"] {
+        button[kind="secondary"] {
             background-color: #2997ff !important; /* Blu EnduFit */
             color: white !important;
             border: none !important;
@@ -105,6 +104,10 @@ st.markdown("""
             font-weight: 600 !important;
             box-shadow: 0 4px 10px rgba(41, 151, 255, 0.3) !important;
             transition: all 0.3s ease !important;
+        }
+        
+        button[kind="secondary"]:hover {
+            background-color: #1a75d1 !important; /* Blu leggermente più scuro al passaggio del mouse */
         }
         
         div[data-testid="stFormSubmitButton"] > button[kind="secondary"]:hover,
@@ -603,7 +606,15 @@ with tab_workout:
                     recupero_coach = es_obj["recupero_coach"]
                     
                     if es not in st.session_state.contatore_serie:
-                        st.session_state.contatore_serie[es] = 1
+                        import re
+                        # Cerca il primo numero scritto dal coach (es. da "4x10" o "4" estrae sempre 4)
+                        numeri = re.findall(r'\d+', str(serie_coach))
+                        if numeri:
+                            serie_iniziali = max(1, int(numeri[0]))
+                        else:
+                            serie_iniziali = 1 # Se il coach ha scritto "?" o lasciato vuoto, parte da 1
+                            
+                        st.session_state.contatore_serie[es] = serie_iniziali
                     
                     testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
                     titolo_expander = f"{es}  —  {testo_titolo}"
