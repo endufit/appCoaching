@@ -1,0 +1,22 @@
+name: Keep Streamlit Awake
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # Esegue lo script ogni 5 giorni alle 08:00
+  workflow_dispatch: # Permette di avviarlo anche a mano se serve
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codice
+        uses: actions/checkout@v3
+
+      - name: Aggiorna il file di ping
+        run: |
+          echo "Ultimo risveglio: $(date)" > keepalive.txt
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "action@github.com"
+          git add keepalive.txt
+          git commit -m "Auto-ping per tenere sveglia l'app Streamlit" || exit 0
+          git push
