@@ -2,7 +2,7 @@ name: Keep Streamlit Awake
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # Esegue lo script ogni 5 giorni alle 08:00
+    - cron: "0 * * * *" # Esegue lo script ogni ora
   workflow_dispatch: # Permette di avviarlo anche a mano se serve
 
 jobs:
