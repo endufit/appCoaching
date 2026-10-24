@@ -8,6 +8,8 @@ on:
 jobs:
   keep-awake:
     runs-on: ubuntu-latest
+    permissions:             # <-- AGGIUNTO: Permessi necessari
+      contents: write        # <-- AGGIUNTO: Permesso di scrittura
     steps:
       - name: Checkout del codice
         uses: actions/checkout@v3
