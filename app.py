@@ -371,6 +371,42 @@ if is_fitness:
         df_storico = pd.DataFrame(dati_storico_puliti, columns=header_storico)
     else:
         df_storico = pd.DataFrame()
+
+    def ottieni_testo_titolo(es_nome, serie_coach, rip_coach, carico_coach, recupero_coach):
+        s_val = str(serie_coach).strip() if str(serie_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
+        r_val = str(rip_coach).strip() if str(rip_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
+        rec_val = str(recupero_coach).strip()
+        
+        sep = " | " 
+        
+        if s_val != "?" and r_val != "?": base_str = f"{s_val} x {r_val}"
+        elif s_val != "?": base_str = f"{s_val} Set"
+        elif r_val != "?": base_str = f"{r_val} rip"
+        else: base_str = "Set liberi"
+            
+        str_recupero = f"{sep}{rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
+        kg_finale = ""
+        
+        if not df_storico.empty and "Esercizio" in df_storico.columns:
+            df_es = df_storico[df_storico["Esercizio"] == es_nome]
+            if not df_es.empty and "Kg Sollevati" in df_es.columns:
+                pesi_validi = df_es[~df_es["Kg Sollevati"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan"])]
+                if not pesi_validi.empty:
+                    ultimi_kg = str(pesi_validi["Kg Sollevati"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
+                    if "kg" in ultimi_kg.lower():
+                        kg_finale = f"{sep}{ultimi_kg}"
+                    else:
+                        kg_finale = f"{sep}{ultimi_kg} kg"
+                
+        if kg_finale == "":
+            c_val = str(carico_coach).strip()
+            if c_val not in ["", "N/D", "nan", "-1", "?"]: 
+                if "kg" in c_val.lower():
+                    kg_finale = f"{sep}{c_val}"
+                else:
+                    kg_finale = f"{sep}{c_val} kg"
+                
+        return f"{base_str}{kg_finale}{str_recupero}"
 else:
     # --- LOGICA ENDURANCE ---
     idx_set, idx_gio, idx_all = 0, 1, 2
