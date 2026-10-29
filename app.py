@@ -372,46 +372,59 @@ if is_fitness:
     else:
         df_storico = pd.DataFrame()
 
-    def ottieni_testo_titolo(es_nome, serie_coach, rip_coach, carico_coach, recupero_coach):
-        s_val = str(serie_coach).strip() if str(serie_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
-        r_val = str(rip_coach).strip() if str(rip_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
-        rec_val = str(recupero_coach).strip()
-        
-        sep = " \u2003|\u2003 " 
-        
-        # 1. SERIE x RIPETIZIONI 
-        if s_val != "?" and r_val != "?": base_str = f"{s_val} x {r_val}"
-        elif s_val != "?": base_str = f"{s_val} Set"
-        elif r_val != "?": base_str = f"{r_val} rip"
-        else: base_str = "Set liberi"
-            
-        # 2. RECUPERO 
-        str_recupero = f"{sep}{rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
-        kg_finale = ""
-        
-        # 3. CARICO DALLO STORICO
-        if not df_storico.empty and "Esercizio" in df_storico.columns:
-            df_es = df_storico[df_storico["Esercizio"] == es_nome]
-            if not df_es.empty and "Kg Sollevati" in df_es.columns:
-                pesi_validi = df_es[~df_es["Kg Sollevati"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan"])]
-                if not pesi_validi.empty:
-                    ultimi_kg = str(pesi_validi["Kg Sollevati"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
-                    if "kg" in ultimi_kg.lower():
-                        kg_finale = f"{sep}{ultimi_kg}"
+    for es_obj in esercizi_assegnati:
+                    es = es_obj["nome"]
+                    serie_coach = es_obj["serie_coach"]
+                    rip_coach = es_obj["rip_coach"]
+                    carico_coach = es_obj["carico_coach"]
+                    recupero_coach = es_obj["recupero_coach"]
+                    note_coach = es_obj.get("note_coach", "")
+                    
+                    if es not in st.session_state.contatore_serie:
+                        import re
+                        numeri = re.findall(r'\d+', str(serie_coach))
+                        st.session_state.contatore_serie[es] = max(1, int(numeri[0])) if numeri else 1
+                    
+                    testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
+                    tieni_aperto = (st.session_state.es_aperto == es)
+                    
+                    # Distanziatore invisibile per separare gli expander tra loro
+                    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                    
+                    # Costruzione del titolo compatta con la nota alla fine della riga
+                    if note_coach and note_coach.lower() not in ["nan", "n/d"]:
+                        titolo_expander = f"{es} — {testo_titolo} | 💡 {note_coach}"
                     else:
-                        kg_finale = f"{sep}{ultimi_kg} kg"
-                
-        # 4. CARICO DAL PROGRAMMA COACH
-        if kg_finale == "":
-            c_val = str(carico_coach).strip()
-            # Se il carico esiste (non è vuoto o N/D), lo formatta. Altrimenti NON scrive nulla.
-            if c_val not in ["", "N/D", "nan", "-1", "?"]: 
-                if "kg" in c_val.lower():
-                    kg_finale = f"{sep}{c_val}"
-                else:
-                    kg_finale = f"{sep}{c_val} kg"
-                
-        return f"{base_str}{kg_finale}{str_recupero}"
+                        titolo_expander = f"{es} — {testo_titolo}"
+                    
+                    with st.expander(titolo_expander, expanded=tieni_aperto):
+                        
+                        img_url = cerca_immagine_esercizio(es)
+                        if img_url:
+                            st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;margin-top:10px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<div style='text-align:center;margin-bottom:15px;margin-top:10px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
+                        for i in range(st.session_state.contatore_serie[es]):
+                            st.markdown(f"**Serie {i + 1}**")
+                            c1, c2 = st.columns(2)
+                            with c1: st.session_state[f"rip_{es}_{i}"] = st.number_input("Ripetizioni", min_value=0, step=1, value=st.session_state.get(f"rip_{es}_{i}", 0), key=f"inp_rip_{es}_{i}")
+                            with c2: st.session_state[f"kg_{es}_{i}"] = st.number_input("Kg", min_value=0.0, step=0.5, value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}")
+                        
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button(f"➕ Aggiungi Serie", key=f"btn_add_{es}", use_container_width=True):
+                                idx_nuovo = st.session_state.contatore_serie[es]
+                                st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_nuovo-1}", 0)
+                                st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_nuovo-1}", 0.0)
+                                st.session_state.contatore_serie[es] += 1
+                                st.session_state.es_aperto = es
+                                st.rerun() 
+                        with btn_col2:
+                            if st.button(f"➖ Rimuovi Serie", key=f"btn_rem_{es}", use_container_width=True):
+                                if st.session_state.contatore_serie[es] > 1:
+                                    st.session_state.contatore_serie[es] -= 1
+                                    st.session_state.es_aperto = es
+                                    st.rerun()
 
 else:
     # --- LOGICA ENDURANCE ---
