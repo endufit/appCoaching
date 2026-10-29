@@ -620,7 +620,7 @@ with tab_workout:
         data_sessione = st.date_input("Data della sessione", datetime.date.today())
 
         if is_fitness:
-            # --- FORM FITNESS (ORIGINALE) ---
+            # --- MODALITÀ FITNESS (SENZA FORM PER EVITARE ERRORI DI RERUN) ---
             if not giorni_disponibili:
                 st.warning("Non ci sono esercizi assegnati o manca la lettera del 'Giorno' nel programma.")
             else:
@@ -637,88 +637,93 @@ with tab_workout:
                     st.session_state.es_aperto = None
 
                 st.divider()
+                st.write("### Scheda")
                 
-                with st.form("workout_form"):
-                    st.write("### Scheda")
+                for es_obj in esercizi_assegnati:
+                    es = es_obj["nome"]
+                    serie_coach = es_obj["serie_coach"]
+                    rip_coach = es_obj["rip_coach"]
+                    carico_coach = es_obj["carico_coach"]
+                    recupero_coach = es_obj["recupero_coach"]
+                    note_coach = es_obj.get("note_coach", "")
                     
+                    if es not in st.session_state.contatore_serie:
+                        import re
+                        numeri = re.findall(r'\d+', str(serie_coach))
+                        st.session_state.contatore_serie[es] = max(1, int(numeri[0])) if numeri else 1
+                    
+                    testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
+                    tieni_aperto = (st.session_state.es_aperto == es)
+                    
+                    # Note visibili fuori
+                    if note_coach and note_coach.lower() not in ["nan", "n/d"]:
+                        st.markdown(f"<div style='color: #94a3b8; font-size: 14px; margin-top: 15px; margin-bottom: 5px;'>💡 <b>Note:</b> {note_coach}</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                    
+                    with st.expander(f"{es} \u2003—\u2003 {testo_titolo}", expanded=tieni_aperto):
+                        img_url = cerca_immagine_esercizio(es)
+                        if img_url:
+                            st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<div style='text-align:center;margin-bottom:15px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
+                        
+                        for i in range(st.session_state.contatore_serie[es]):
+                            st.markdown(f"**Serie {i + 1}**")
+                            c1, c2 = st.columns(2)
+                            with c1: st.session_state[f"rip_{es}_{i}"] = st.number_input("Ripetizioni", min_value=0, step=1, value=st.session_state.get(f"rip_{es}_{i}", 0), key=f"inp_rip_{es}_{i}")
+                            with c2: st.session_state[f"kg_{es}_{i}"] = st.number_input("Kg", min_value=0.0, step=0.5, value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}")
+                        
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button(f"➕ Aggiungi Serie", key=f"btn_add_{es}", use_container_width=True):
+                                idx_nuovo = st.session_state.contatore_serie[es]
+                                st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_nuovo-1}", 0)
+                                st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_nuovo-1}", 0.0)
+                                st.session_state.contatore_serie[es] += 1
+                                st.session_state.es_aperto = es
+                                st.rerun() 
+                        with btn_col2:
+                            if st.button(f"➖ Rimuovi Serie", key=f"btn_rem_{es}", use_container_width=True):
+                                if st.session_state.contatore_serie[es] > 1:
+                                    st.session_state.contatore_serie[es] -= 1
+                                    st.session_state.es_aperto = es
+                                    st.rerun()
+
+                st.divider()
+                st.write("### Fine Allenamento")
+                rpe_globale = st.slider("Fatica percepita (10=massima, 0=nessuna)", min_value=0.0, max_value=10.0, value=7.0, step=0.5)
+                feedback_globale = st.text_area("Feedback / Dolori (Opzionale)", placeholder="Scrivi qui se hai provato fastidi...")
+                
+                st.divider()
+                if st.button("💾 Consegna Intero Allenamento", type="primary", use_container_width=True):
+                    righe_da_inserire = []
                     for es_obj in esercizi_assegnati:
                         es = es_obj["nome"]
-                        serie_coach = es_obj["serie_coach"]
-                        rip_coach = es_obj["rip_coach"]
-                        carico_coach = es_obj["carico_coach"]
-                        recupero_coach = es_obj["recupero_coach"]
-                        
-                        if es not in st.session_state.contatore_serie:
-                            import re
-                            numeri = re.findall(r'\d+', str(serie_coach))
-                            st.session_state.contatore_serie[es] = max(1, int(numeri[0])) if numeri else 1
-                        
-                        testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
-                        tieni_aperto = (st.session_state.es_aperto == es)
-                        
-                        with st.expander(f"{es} \u2003—\u2003 {testo_titolo}", expanded=tieni_aperto):
-                            img_url = cerca_immagine_esercizio(es)
-                            if img_url:
-                                st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"<div style='text-align:center;margin-bottom:15px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
-                            
-                            for i in range(st.session_state.contatore_serie[es]):
-                                st.markdown(f"**Serie {i + 1}**")
-                                c1, c2 = st.columns(2)
-                                with c1: st.number_input("Ripetizioni", min_value=0, step=1, key=f"rip_{es}_{i}")
-                                with c2: st.number_input("Kg", min_value=0.0, step=0.5, key=f"kg_{es}_{i}")
-                            
-                            btn_col1, btn_col2 = st.columns(2)
-                            with btn_col1:
-                                if st.form_submit_button(f"➕ Aggiungi Serie", key=f"btn_add_{es}", use_container_width=True):
-                                    idx_nuovo = st.session_state.contatore_serie[es]
-                                    st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_nuovo-1}", 0)
-                                    st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_nuovo-1}", 0.0)
-                                    st.session_state.contatore_serie[es] += 1
-                                    st.session_state.es_aperto = es
-                                    st.rerun() 
-                            with btn_col2:
-                                if st.form_submit_button(f"➖ Rimuovi Serie", key=f"btn_rem_{es}", use_container_width=True):
-                                    if st.session_state.contatore_serie[es] > 1:
-                                        st.session_state.contatore_serie[es] -= 1
-                                        st.session_state.es_aperto = es
-                                        st.rerun()
-
-                    st.divider()
-                    st.write("### Fine Allenamento")
-                    rpe_globale = st.slider("Fatica percepita (10=massima, 0=nessuna)", min_value=0.0, max_value=10.0, value=7.0, step=0.5)
-                    feedback_globale = st.text_area("Feedback / Dolori (Opzionale)", placeholder="Scrivi qui se hai provato fastidi...")
+                        for i in range(st.session_state.contatore_serie[es]):
+                            rip = st.session_state.get(f"rip_{es}_{i}", 0)
+                            kg = st.session_state.get(f"kg_{es}_{i}", 0.0)
+                            if rip > 0:
+                                righe_da_inserire.append([
+                                    str(data_sessione), es, i+1, rip, str(kg).replace(".", ","), 
+                                    str(rip*kg).replace(".", ","), str(rpe_globale).replace(".", ","), feedback_globale
+                                ])
                     
-                    st.divider()
-                    if st.form_submit_button("💾 Consegna Intero Allenamento", type="primary", use_container_width=True):
-                        righe_da_inserire = []
-                        for es_obj in esercizi_assegnati:
-                            es = es_obj["nome"]
-                            for i in range(st.session_state.contatore_serie[es]):
-                                rip = st.session_state.get(f"rip_{es}_{i}", 0)
-                                kg = st.session_state.get(f"kg_{es}_{i}", 0.0)
-                                if rip > 0:
-                                    righe_da_inserire.append([
-                                        str(data_sessione), es, i+1, rip, str(kg).replace(".", ","), 
-                                        str(rip*kg).replace(".", ","), str(rpe_globale).replace(".", ","), feedback_globale
-                                    ])
-                        
-                        if len(righe_da_inserire) > 0:
-                            try:
-                                sheet_storico.append_rows(righe_da_inserire, value_input_option='USER_ENTERED')
-                                scarica_dati_fogli.clear()
-                                st.session_state.dati_salvati = True
-                                st.session_state.contatore_serie = {} 
-                                st.session_state.es_aperto = None 
-                                st.rerun() 
-                            except Exception as e:
-                                st.error(f"Errore durante il salvataggio: {e}")
-                        else:
-                            st.warning("⚠️ Non hai compilato nessuna serie valida. Nessun dato salvato.")
+                    if len(righe_da_inserire) > 0:
+                        try:
+                            sheet_storico.append_rows(righe_da_inserire, value_input_option='USER_ENTERED')
+                            scarica_dati_fogli.clear()
+                            st.session_state.dati_salvati = True
+                            st.session_state.contatore_serie = {} 
+                            st.session_state.es_aperto = None 
+                            st.rerun() 
+                        except Exception as e:
+                            st.error(f"Errore durante il salvataggio: {e}")
+                    else:
+                        st.warning("⚠️ Non hai compilato nessuna serie valida. Nessun dato salvato.")
 
         else:
-            # --- FORM ENDURANCE ---
+            # --- FORM ENDURANCE (Resta invariato perché non ha pulsanti dinamici "+/- serie") ---
             if not programma_endurance:
                 st.warning("⚠️ Impossibile generare le settimane. Assicurati che nel foglio ci siano le colonne 'Settimana', 'Giorno' e 'Allenamento'.")
             else:
@@ -737,7 +742,6 @@ with tab_workout:
                         st.markdown(f"**Programma della seduta:**")
                         st.info(txt_allenamento)
                         
-                        # Form separato per OGNI singolo giorno
                         with st.form(key=f"form_endurance_{idx}"):
                             st.write("**Com'è andata questa seduta?**")
                             rpe_seduta = st.slider("Fatica percepita (RPE)", min_value=0.0, max_value=10.0, value=7.0, step=0.5, key=f"rpe_endurance_{idx}")
@@ -746,18 +750,13 @@ with tab_workout:
                             if st.form_submit_button("💾 Salva Allenamento", type="primary", use_container_width=True):
                                 righe_da_inserire = []
                                 
-                                # Se il diario è completamente vuoto, inseriamo prima le intestazioni per non far crollare la dashboard in futuro
                                 se_diario_vuoto = len(dati_storico) == 0
                                 if se_diario_vuoto:
                                     righe_da_inserire.append(["Data", "Settimana", "Giorno", "Allenamento", "RPE", "Feedback"])
                                 
                                 righe_da_inserire.append([
-                                    str(data_sessione),
-                                    settimana_scelta,
-                                    gio,
-                                    txt_allenamento,
-                                    str(rpe_seduta).replace(".", ","),
-                                    feedback_seduta
+                                    str(data_sessione), settimana_scelta, gio, txt_allenamento,
+                                    str(rpe_seduta).replace(".", ","), feedback_seduta
                                 ])
                                 
                                 try:
