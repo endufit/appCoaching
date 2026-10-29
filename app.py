@@ -655,18 +655,20 @@ with tab_workout:
                     testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
                     tieni_aperto = (st.session_state.es_aperto == es)
                     
-                    # Note visibili fuori
-                    if note_coach and note_coach.lower() not in ["nan", "n/d"]:
-                        st.markdown(f"<div style='color: #94a3b8; font-size: 14px; margin-top: 15px; margin-bottom: 5px;'>💡 <b>Note:</b> {note_coach}</div>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                    # Distanziatore invisibile per separare gli expander tra loro
+                    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                     
                     with st.expander(f"{es} \u2003—\u2003 {testo_titolo}", expanded=tieni_aperto):
+                        
+                        # --- LE NOTE SONO LA PRIMA COSA DENTRO L'EXPANDER ---
+                        if note_coach and note_coach.lower() not in ["nan", "n/d"]:
+                            st.info(f"💡 **NOTA COACH:** {note_coach}")
+                        
                         img_url = cerca_immagine_esercizio(es)
                         if img_url:
-                            st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;margin-top:10px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
                         else:
-                            st.markdown(f"<div style='text-align:center;margin-bottom:15px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='text-align:center;margin-bottom:15px;margin-top:10px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
                         
                         for i in range(st.session_state.contatore_serie[es]):
                             st.markdown(f"**Serie {i + 1}**")
