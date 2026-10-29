@@ -314,6 +314,7 @@ if is_fitness:
     riga_header = -1
     idx_es, idx_giorno = -1, -1
     idx_serie_coach, idx_rip_coach, idx_carico_coach, idx_recupero = -1, -1, -1, -1
+    idx_note = -1 # <--- AGGIUNGI QUESTA RIGA
 
     for i, riga in enumerate(dati_programma):
         riga_pulita = [str(c).lower().strip() for c in riga]
@@ -326,6 +327,7 @@ if is_fitness:
                 elif "ripetizioni target" in col_str or "ripetizioni" in col_str or "rip" in col_str: idx_rip_coach = j
                 elif "carico" in col_str or "kg" in col_str or "peso" in col_str: idx_carico_coach = j
                 elif "recupero" in col_str: idx_recupero = j
+                elif "note" in col_str: idx_note = j # <--- AGGIUNGI QUESTA RIGA
             break
 
     if riga_header == -1:
@@ -335,20 +337,22 @@ if is_fitness:
     esercizi_dict = {}
     giorni_disponibili = set()
 
-    for riga in dati_programma[riga_header+1:]:
+   for riga in dati_programma[riga_header+1:]:
         nome = str(riga[idx_es]).strip() if idx_es < len(riga) else ""
         giorno = str(riga[idx_giorno]).strip().upper() if idx_giorno < len(riga) else ""
         serie_coach = str(riga[idx_serie_coach]).strip() if idx_serie_coach != -1 and idx_serie_coach < len(riga) else "?"
         rip_coach = str(riga[idx_rip_coach]).strip() if idx_rip_coach != -1 and idx_rip_coach < len(riga) else "?"
         carico_coach = str(riga[idx_carico_coach]).strip() if idx_carico_coach != -1 and idx_carico_coach < len(riga) else ""
         recupero_coach = str(riga[idx_recupero]).strip() if idx_recupero != -1 and idx_recupero < len(riga) else ""
+        note_coach = str(riga[idx_note]).strip() if idx_note != -1 and idx_note < len(riga) else "" # <--- AGGIUNGI QUESTA
         
         if nome != "":
             if giorno not in esercizi_dict:
                 esercizi_dict[giorno] = []
             esercizi_dict[giorno].append({
                 "nome": nome, "serie_coach": serie_coach, "rip_coach": rip_coach,
-                "carico_coach": carico_coach, "recupero_coach": recupero_coach
+                "carico_coach": carico_coach, "recupero_coach": recupero_coach,
+                "note_coach": note_coach # <--- AGGIUNGI QUESTA
             })
             if giorno != "":
                 giorni_disponibili.add(giorno)
@@ -373,7 +377,6 @@ if is_fitness:
         r_val = str(rip_coach).strip() if str(rip_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
         rec_val = str(recupero_coach).strip()
         
-        # Spazio largo forzato (Em-Space) che Streamlit/HTML non collassa
         sep = " \u2003|\u2003 " 
         
         # 1. SERIE x RIPETIZIONI 
@@ -401,13 +404,12 @@ if is_fitness:
         # 4. CARICO DAL PROGRAMMA COACH
         if kg_finale == "":
             c_val = str(carico_coach).strip()
+            # Se il carico esiste (non è vuoto o N/D), lo formatta. Altrimenti NON scrive nulla.
             if c_val not in ["", "N/D", "nan", "-1", "?"]: 
                 if "kg" in c_val.lower():
                     kg_finale = f"{sep}{c_val}"
                 else:
                     kg_finale = f"{sep}{c_val} kg"
-            else: 
-                kg_finale = f"{sep}Kg liberi"
                 
         return f"{base_str}{kg_finale}{str_recupero}"
 
