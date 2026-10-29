@@ -126,6 +126,8 @@ st.markdown("""
         div[data-testid="stExpander"] summary p {
             color: #ffffff !important;
             font-weight: bold !important;
+            font-size: 17px !important; /* <--- Aumenta la grandezza del testo */
+            letter-spacing: 0.5px !important; /* <--- Allarga le lettere tra loro */
         }
         div[data-testid="stExpander"] summary span[data-testid="stIconMaterial"] {
             color: #ffffff !important;
@@ -371,40 +373,41 @@ if is_fitness:
         r_val = str(rip_coach).strip() if str(rip_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
         rec_val = str(recupero_coach).strip()
         
-        # 1. SERIE x RIPETIZIONI (con spaziature)
+        # Spazio largo forzato (Em-Space) che Streamlit/HTML non collassa
+        sep = " \u2003|\u2003 " 
+        
+        # 1. SERIE x RIPETIZIONI 
         if s_val != "?" and r_val != "?": base_str = f"{s_val} x {r_val}"
         elif s_val != "?": base_str = f"{s_val} Set"
         elif r_val != "?": base_str = f"{r_val} rip"
         else: base_str = "Set liberi"
             
-        # 2. RECUPERO (aggiunta icona clessidra e spaziatura)
-        str_recupero = f"   |   ⏳ {rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
+        # 2. RECUPERO 
+        str_recupero = f"{sep}{rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
         kg_finale = ""
         
-        # 3. CARICO DALLO STORICO (Ultimo peso usato)
+        # 3. CARICO DALLO STORICO
         if not df_storico.empty and "Esercizio" in df_storico.columns:
             df_es = df_storico[df_storico["Esercizio"] == es_nome]
             if not df_es.empty and "Kg Sollevati" in df_es.columns:
                 pesi_validi = df_es[~df_es["Kg Sollevati"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan"])]
                 if not pesi_validi.empty:
                     ultimi_kg = str(pesi_validi["Kg Sollevati"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
-                    # Controlla se la parola "kg" c'è già
                     if "kg" in ultimi_kg.lower():
-                        kg_finale = f"   |   ⚖️ {ultimi_kg}"
+                        kg_finale = f"{sep}{ultimi_kg}"
                     else:
-                        kg_finale = f"   |   ⚖️ {ultimi_kg} kg"
+                        kg_finale = f"{sep}{ultimi_kg} kg"
                 
-        # 4. CARICO DAL PROGRAMMA COACH (Se non c'è nello storico)
+        # 4. CARICO DAL PROGRAMMA COACH
         if kg_finale == "":
             c_val = str(carico_coach).strip()
             if c_val not in ["", "N/D", "nan", "-1", "?"]: 
-                # Controlla se il coach ha già scritto "kg"
                 if "kg" in c_val.lower():
-                    kg_finale = f"   |   ⚖️ {c_val}"
+                    kg_finale = f"{sep}{c_val}"
                 else:
-                    kg_finale = f"   |   ⚖️ {c_val} kg"
+                    kg_finale = f"{sep}{c_val} kg"
             else: 
-                kg_finale = f"   |   ⚖️ Kg liberi"
+                kg_finale = f"{sep}Kg liberi"
                 
         return f"{base_str}{kg_finale}{str_recupero}"
 
@@ -651,7 +654,7 @@ with tab_workout:
                         testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
                         tieni_aperto = (st.session_state.es_aperto == es)
                         
-                        with st.expander(f"{es}  —  {testo_titolo}", expanded=tieni_aperto):
+                        with st.expander(f"{es} \u2003—\u2003 {testo_titolo}", expanded=tieni_aperto):
                             img_url = cerca_immagine_esercizio(es)
                             if img_url:
                                 st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
