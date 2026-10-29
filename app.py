@@ -670,11 +670,16 @@ with tab_workout:
                         else:
                             st.markdown(f"<div style='text-align:center;margin-bottom:15px;margin-top:10px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
                         
+                        # Determina se l'esercizio usa Kg o Secondi in base alla presenza del carico
+                        usa_secondi = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
+                        etichetta = "Secondi" if usa_secondi else "Kg"
+                        step_val = 1.0 if usa_secondi else 0.5
+                        
                         for i in range(st.session_state.contatore_serie[es]):
                             st.markdown(f"**Serie {i + 1}**")
                             c1, c2 = st.columns(2)
                             with c1: st.session_state[f"rip_{es}_{i}"] = st.number_input("Ripetizioni", min_value=0, step=1, value=st.session_state.get(f"rip_{es}_{i}", 0), key=f"inp_rip_{es}_{i}")
-                            with c2: st.session_state[f"kg_{es}_{i}"] = st.number_input("Kg", min_value=0.0, step=0.5, value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}")
+                            with c2: st.session_state[f"kg_{es}_{i}"] = st.number_input(etichetta, min_value=0.0, step=step_val, value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}")
                         
                         btn_col1, btn_col2 = st.columns(2)
                         with btn_col1:
@@ -705,10 +710,16 @@ with tab_workout:
                         for i in range(st.session_state.contatore_serie[es]):
                             rip = st.session_state.get(f"rip_{es}_{i}", 0)
                             kg = st.session_state.get(f"kg_{es}_{i}", 0.0)
-                            if rip > 0:
+                            
+                            # Pulisce i decimali superflui se i secondi/kg sono un numero intero (es. 30.0 -> 30)
+                            kg_str = str(int(kg)) if kg == int(kg) else str(kg).replace(".", ",")
+                            tonnellaggio_str = str(int(rip * kg)) if (rip * kg) == int(rip * kg) else str(rip * kg).replace(".", ",")
+                            
+                            # Salva la serie se c'è ALMENO una ripetizione, oppure se ci sono dei secondi/kg (es. per il Plank)
+                            if rip > 0 or kg > 0:
                                 righe_da_inserire.append([
-                                    str(data_sessione), es, i+1, rip, str(kg).replace(".", ","), 
-                                    str(rip*kg).replace(".", ","), str(rpe_globale).replace(".", ","), feedback_globale
+                                    str(data_sessione), es, i+1, rip, kg_str, 
+                                    tonnellaggio_str, str(rpe_globale).replace(".", ","), feedback_globale
                                 ])
                     
                     if len(righe_da_inserire) > 0:
