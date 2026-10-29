@@ -198,12 +198,18 @@ st.markdown("""
     </script>
 """, unsafe_allow_html=True)
 
-# --- 1. AUTENTICAZIONE GOOGLE ---
-try:
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-    client = gspread.authorize(credentials)
-except Exception as e:
+# --- 1. AUTENTICAZIONE GOOGLE (IN CACHE) ---
+@st.cache_resource(ttl=3600)
+def connetti_a_google():
+    try:
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+        return gspread.authorize(credentials)
+    except Exception as e:
+        return None
+
+client = connetti_a_google()
+if not client:
     st.error("Errore di autenticazione con Google. Controlla le chiavi segrete.")
     st.stop()
 
@@ -223,35 +229,38 @@ if not id_foglio:
     st.markdown("<p style='text-align: center; color: #475569; font-size: 12px;'>Se la schermata rimane bloccata, assicurati di aver aperto il link originale inviato dal coach almeno una volta.</p>", unsafe_allow_html=True)
     st.stop()
 
+# --- 3. CONNESSIONE AI FOGLI (IN CACHE PER EVITARE BLOCCHI API 429) ---
+@st.cache_resource(ttl=3600)
+def ottieni_fogli_google(foglio_id, _client_gspread):
+    try:
+        sp = _client_gspread.open_by_key(foglio_id)
+        sh_prog = sp.get_worksheet(0)
+        
+        # IDENTIFICATORE: Se il primo foglio si chiama "Programma coach", è Fitness. Altrimenti, è Endurance.
+        is_fit = sh_prog.title.lower().strip() == "programma coach"
+        
+        # Se il foglio storico non esiste, lo crea al volo
+        try:
+            sh_stor = sp.worksheet("Diario Atleta") 
+        except gspread.exceptions.WorksheetNotFound:
+            sh_stor = sp.add_worksheet(title="Diario Atleta", rows="1000", cols="20")
+            
+        return sp, sh_prog, sh_stor, is_fit
+    except Exception as e:
+        raise e
+
 try:
-    spreadsheet = client.open_by_key(id_foglio)
+    spreadsheet, sheet_programma, sheet_storico, is_fitness = ottieni_fogli_google(id_foglio, client)
 except Exception as e:
     st.error(f"Impossibile accedere al foglio. Dettagli: {e}")
     st.stop()
 
-# --- 3. DEFINIZIONE DEI FOGLI E IDENTIFICAZIONE CATEGORIA ---
-try:
-    sheet_programma = spreadsheet.get_worksheet(0)
-    
-    # IDENTIFICATORE: Se il primo foglio si chiama "Programma coach", è Fitness. Altrimenti, è Endurance.
-    is_fitness = sheet_programma.title.lower().strip() == "programma coach"
-    
-    # Se il foglio storico non esiste, lo crea al volo (soprattutto per Endurance)
-    try:
-        sheet_storico = spreadsheet.worksheet("Diario Atleta") 
-    except gspread.exceptions.WorksheetNotFound:
-        sheet_storico = spreadsheet.add_worksheet(title="Diario Atleta", rows="1000", cols="20")
-except Exception as e:
-    st.error(f"Errore durante la lettura dei fogli: {e}")
-    st.stop()
-
-# --- 4. SISTEMI DI CACHE ---
+# --- 4. SISTEMI DI CACHE PER I DATI DELLE CELLE ---
 @st.cache_data(ttl=300)
 def scarica_dati_fogli(id_atleta, _prog, _storico):
     return _prog.get_all_values(), _storico.get_all_values()
 
 dati_programma, dati_storico = scarica_dati_fogli(id_foglio, sheet_programma, sheet_storico)
-
 @st.cache_data(ttl=86400) 
 def cerca_immagine_esercizio(nome_esercizio):
     nome_lower = nome_esercizio.lower().strip()
