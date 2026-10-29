@@ -673,7 +673,7 @@ with tab_workout:
                         # Determina se l'esercizio usa Kg o Secondi in base alla presenza del carico
                         usa_secondi = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
                         etichetta = "Secondi" if usa_secondi else "Kg"
-                        step_val = 1.0 if usa_secondi else 0.5
+                        step_val = 5.0 if usa_secondi else 0.5
                         
                         for i in range(st.session_state.contatore_serie[es]):
                             st.markdown(f"**Serie {i + 1}**")
