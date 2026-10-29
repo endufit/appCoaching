@@ -115,6 +115,7 @@ st.markdown("""
         }
 
         /* Expanders */
+        /* Expanders */
         div[data-testid="stExpander"] {
             background-color: rgba(255, 255, 255, 0.03) !important;
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -126,8 +127,10 @@ st.markdown("""
         div[data-testid="stExpander"] summary p {
             color: #ffffff !important;
             font-weight: bold !important;
-            font-size: 17px !important; /* <--- Aumenta la grandezza del testo */
-            letter-spacing: 0.5px !important; /* <--- Allarga le lettere tra loro */
+            font-size: 16px !important; 
+            letter-spacing: 0.5px !important; 
+            white-space: normal !important; /* <--- PERMETTE ALLA NOTA LUNGA DI ANDARE A CAPO */
+            line-height: 1.5 !important;
         }
         div[data-testid="stExpander"] summary span[data-testid="stIconMaterial"] {
             color: #ffffff !important;
@@ -652,11 +655,14 @@ with tab_workout:
                     # Distanziatore invisibile per separare gli expander tra loro
                     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                     
-                    with st.expander(f"{es} \u2003—\u2003 {testo_titolo}", expanded=tieni_aperto):
-                        
-                        # --- LE NOTE SONO LA PRIMA COSA DENTRO L'EXPANDER ---
-                        if note_coach and note_coach.lower() not in ["nan", "n/d"]:
-                            st.info(f"💡 **NOTA COACH:** {note_coach}")
+                    # 1. Costruisco il titolo compatto inserendo la nota direttamente nella riga
+                    if note_coach and note_coach.lower() not in ["nan", "n/d"]:
+                        titolo_expander = f"{es} — {testo_titolo} | 💡 {note_coach}"
+                    else:
+                        titolo_expander = f"{es} — {testo_titolo}"
+                    
+                    # 2. Creo l'expander con il nuovo titolo
+                    with st.expander(titolo_expander, expanded=tieni_aperto):
                         
                         img_url = cerca_immagine_esercizio(es)
                         if img_url:
