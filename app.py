@@ -337,7 +337,7 @@ if is_fitness:
     esercizi_dict = {}
     giorni_disponibili = set()
 
-   for riga in dati_programma[riga_header+1:]:
+    for riga in dati_programma[riga_header+1:]:
         nome = str(riga[idx_es]).strip() if idx_es < len(riga) else ""
         giorno = str(riga[idx_giorno]).strip().upper() if idx_giorno < len(riga) else ""
         serie_coach = str(riga[idx_serie_coach]).strip() if idx_serie_coach != -1 and idx_serie_coach < len(riga) else "?"
