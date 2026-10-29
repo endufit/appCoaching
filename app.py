@@ -679,13 +679,24 @@ with tab_workout:
                         else:
                             st.markdown(f"<div style='text-align:center;margin-bottom:15px;margin-top:10px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
                         
-                        # 1. Controlla le ripetizioni per capire se è a tempo (cerca ' o ")
-                        usa_secondi = "'" in str(rip_coach) or '"' in str(rip_coach)
-                        etichetta_prima_colonna = "Secondi" if usa_secondi else "Ripetizioni"
-                        step_prima_colonna = 5 if usa_secondi else 1
+                        # --- LOGICA COLONNE ---
+                        carico_vuoto = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
+                        ha_apostrofi = "'" in str(rip_coach) or '"' in str(rip_coach)
                         
-                        # 2. Controlla il carico per capire se deve nascondere l'input dei Kg
-                        nascondi_carico = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
+                        if not carico_vuoto:
+                            # Se c'è il carico, la colonna 2 è "Kg"
+                            etichetta_col2 = "Kg"
+                            step_col2 = 0.5
+                        else:
+                            # Se NON c'è il carico
+                            if ha_apostrofi:
+                                # È a tempo, quindi la colonna 2 è "Secondi"
+                                etichetta_col2 = "Secondi"
+                                step_col2 = 5.0
+                            else:
+                                # Altrimenti rimangono i "Kg" di default
+                                etichetta_col2 = "Kg"
+                                step_col2 = 0.5
                         
                         for i in range(st.session_state.contatore_serie[es]):
                             st.markdown(f"**Serie {i + 1}**")
@@ -693,20 +704,33 @@ with tab_workout:
                             
                             with c1: 
                                 st.session_state[f"rip_{es}_{i}"] = st.number_input(
-                                    etichetta_prima_colonna, min_value=0, step=step_prima_colonna, 
+                                    "Ripetizioni", min_value=0, step=1, 
                                     value=st.session_state.get(f"rip_{es}_{i}", 0), key=f"inp_rip_{es}_{i}"
                                 )
                                 
                             with c2: 
-                                if not nascondi_carico:
-                                    st.session_state[f"kg_{es}_{i}"] = st.number_input(
-                                        "Kg", min_value=0.0, step=0.5, 
-                                        value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}"
-                                    )
-                                else:
-                                    # Salva i kg a zero in background e lascia vuota la colonna
-                                    st.session_state[f"kg_{es}_{i}"] = 0.0
-                                    st.markdown("<div style='height: 70px;'></div>", unsafe_allow_html=True)
+                                st.session_state[f"kg_{es}_{i}"] = st.number_input(
+                                    etichetta_col2, min_value=0.0, step=step_col2, 
+                                    value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}"
+                                )
+                        
+                        # --- PULSANTI AGGIUNGI/RIMUOVI SERIE ---
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button(f"➕ Aggiungi Serie", key=f"btn_add_{es}", use_container_width=True):
+                                idx_nuovo = st.session_state.contatore_serie[es]
+                                st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_nuovo-1}", 0)
+                                st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_nuovo-1}", 0.0)
+                                st.session_state.contatore_serie[es] += 1
+                                st.session_state.es_aperto = es
+                                st.rerun() 
+                        with btn_col2:
+                            if st.button(f"➖ Rimuovi Serie", key=f"btn_rem_{es}", use_container_width=True):
+                                if st.session_state.contatore_serie[es] > 1:
+                                    st.session_state.contatore_serie[es] -= 1
+                                    st.session_state.es_aperto = es
+                                    st.rerun()
+
                 st.divider()
                 st.write("### Fine Allenamento")
                 rpe_globale = st.slider("Fatica percepita (10=massima, 0=nessuna)", min_value=0.0, max_value=10.0, value=7.0, step=0.5)
