@@ -371,61 +371,6 @@ if is_fitness:
         df_storico = pd.DataFrame(dati_storico_puliti, columns=header_storico)
     else:
         df_storico = pd.DataFrame()
-
-    for es_obj in esercizi_assegnati:
-                    es = es_obj["nome"]
-                    serie_coach = es_obj["serie_coach"]
-                    rip_coach = es_obj["rip_coach"]
-                    carico_coach = es_obj["carico_coach"]
-                    recupero_coach = es_obj["recupero_coach"]
-                    note_coach = es_obj.get("note_coach", "")
-                    
-                    if es not in st.session_state.contatore_serie:
-                        import re
-                        numeri = re.findall(r'\d+', str(serie_coach))
-                        st.session_state.contatore_serie[es] = max(1, int(numeri[0])) if numeri else 1
-                    
-                    testo_titolo = ottieni_testo_titolo(es, serie_coach, rip_coach, carico_coach, recupero_coach)
-                    tieni_aperto = (st.session_state.es_aperto == es)
-                    
-                    # Distanziatore invisibile per separare gli expander tra loro
-                    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                    
-                    # Costruzione del titolo compatta con la nota alla fine della riga
-                    if note_coach and note_coach.lower() not in ["nan", "n/d"]:
-                        titolo_expander = f"{es} — {testo_titolo} | 💡 {note_coach}"
-                    else:
-                        titolo_expander = f"{es} — {testo_titolo}"
-                    
-                    with st.expander(titolo_expander, expanded=tieni_aperto):
-                        
-                        img_url = cerca_immagine_esercizio(es)
-                        if img_url:
-                            st.markdown(f'<div style="display:flex;justify-content:center;margin-bottom:15px;margin-top:10px;"><img src="{img_url}" width="200" style="border-radius:10px;"></div>', unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<div style='text-align:center;margin-bottom:15px;margin-top:10px;'><a href='https://www.youtube.com/results?search_query=tutorial+esecuzione+{es.replace(' ', '+')}' target='_blank' style='text-decoration:none;font-size:14px;font-weight:bold;color:#e63946;'>🎥 Cerca Tutorial YouTube</a></div>", unsafe_allow_html=True)
-                        for i in range(st.session_state.contatore_serie[es]):
-                            st.markdown(f"**Serie {i + 1}**")
-                            c1, c2 = st.columns(2)
-                            with c1: st.session_state[f"rip_{es}_{i}"] = st.number_input("Ripetizioni", min_value=0, step=1, value=st.session_state.get(f"rip_{es}_{i}", 0), key=f"inp_rip_{es}_{i}")
-                            with c2: st.session_state[f"kg_{es}_{i}"] = st.number_input("Kg", min_value=0.0, step=0.5, value=st.session_state.get(f"kg_{es}_{i}", 0.0), key=f"inp_kg_{es}_{i}")
-                        
-                        btn_col1, btn_col2 = st.columns(2)
-                        with btn_col1:
-                            if st.button(f"➕ Aggiungi Serie", key=f"btn_add_{es}", use_container_width=True):
-                                idx_nuovo = st.session_state.contatore_serie[es]
-                                st.session_state[f"rip_{es}_{idx_nuovo}"] = st.session_state.get(f"rip_{es}_{idx_nuovo-1}", 0)
-                                st.session_state[f"kg_{es}_{idx_nuovo}"] = st.session_state.get(f"kg_{es}_{idx_nuovo-1}", 0.0)
-                                st.session_state.contatore_serie[es] += 1
-                                st.session_state.es_aperto = es
-                                st.rerun() 
-                        with btn_col2:
-                            if st.button(f"➖ Rimuovi Serie", key=f"btn_rem_{es}", use_container_width=True):
-                                if st.session_state.contatore_serie[es] > 1:
-                                    st.session_state.contatore_serie[es] -= 1
-                                    st.session_state.es_aperto = es
-                                    st.rerun()
-
 else:
     # --- LOGICA ENDURANCE ---
     idx_set, idx_gio, idx_all = 0, 1, 2
