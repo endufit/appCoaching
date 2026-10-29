@@ -657,7 +657,7 @@ with tab_workout:
                     
                     # 1. Costruisco il titolo compatto inserendo la nota direttamente nella riga
                     if note_coach and note_coach.lower() not in ["nan", "n/d"]:
-                        titolo_expander = f"{es} — {testo_titolo} | 💡 {note_coach}"
+                        titolo_expander = f"{es} — {testo_titolo} | Note esec: {note_coach}"
                     else:
                         titolo_expander = f"{es} — {testo_titolo}"
                     
