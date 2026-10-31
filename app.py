@@ -239,11 +239,14 @@ def ottieni_fogli_google(foglio_id, _client_gspread):
         # IDENTIFICATORE: Se il primo foglio si chiama "Programma coach", è Fitness. Altrimenti, è Endurance.
         is_fit = sh_prog.title.lower().strip() == "programma coach"
         
-        # Se il foglio storico non esiste, lo crea al volo
+        # MODIFICA: Seleziona il foglio corretto per il salvataggio
+        nome_foglio_salvataggio = "Diario Atleta" if is_fit else "Report RPE"
+        
+        # Cerca il foglio storico/report o lo crea al volo
         try:
-            sh_stor = sp.worksheet("Diario Atleta") 
+            sh_stor = sp.worksheet(nome_foglio_salvataggio) 
         except gspread.exceptions.WorksheetNotFound:
-            sh_stor = sp.add_worksheet(title="Diario Atleta", rows="1000", cols="20")
+            sh_stor = sp.add_worksheet(title=nome_foglio_salvataggio, rows="1000", cols="20")
             
         return sp, sh_prog, sh_stor, is_fit
     except Exception as e:
@@ -420,39 +423,68 @@ if is_fitness:
                 
         return f"{base_str}{kg_finale}{str_recupero}"
 else:
-    # --- LOGICA ENDURANCE ---
-    idx_set, idx_gio, idx_all = 0, 1, 2
-    riga_header_end = -1
+    # --- PARSING ENDURANCE (Layout a Calendario) ---
+    programma_endurance = {}
+    settimana_corrente = None
+    giorni_colonne = {}
+    riga_titoli_idx = -1
     
     for i, riga in enumerate(dati_programma):
-        riga_pulita = [str(c).lower().strip() for c in riga]
-        if "settimana" in riga_pulita:
-            riga_header_end = i
-            idx_set = riga_pulita.index("settimana")
-            if "giorno" in riga_pulita: idx_gio = riga_pulita.index("giorno")
-            elif "data" in riga_pulita: idx_gio = riga_pulita.index("data")
+        riga_str = " ".join([str(c).lower() for c in riga])
+        
+        # 1. Cerca l'inizio di una nuova Settimana
+        if "settimana" in riga_str:
+            if settimana_corrente and giorni_colonne:
+                programma_endurance[settimana_corrente] = list(giorni_colonne.values())
             
-            for col in ["allenamento", "descrizione", "programma", "workout", "seduta"]:
-                if col in riga_pulita:
-                    idx_all = riga_pulita.index(col)
+            for cella in riga:
+                testo = str(cella).strip()
+                if "settimana" in testo.lower():
+                    settimana_corrente = testo
                     break
-            else:
-                idx_all = idx_gio + 1 # Fallback 
-            break
-            
-    programma_endurance = {}
-    if riga_header_end != -1:
-        for riga in dati_programma[riga_header_end+1:]:
-            sett = str(riga[idx_set]).strip() if idx_set < len(riga) else ""
-            gio = str(riga[idx_gio]).strip() if idx_gio < len(riga) else ""
-            alln = str(riga[idx_all]).strip() if idx_all < len(riga) else ""
-            
-            if sett and gio and alln:
-                if sett not in programma_endurance:
-                    programma_endurance[sett] = []
-                programma_endurance[sett].append({"giorno": gio, "allenamento": alln})
+            giorni_colonne = {}
+            continue
+        
+        # 2. Cerca la riga con le etichette "Giorno 1", "Giorno 2", ecc.
+        if "giorno " in riga_str and settimana_corrente:
+            for j, cella in enumerate(riga):
+                testo = str(cella).strip()
+                if "giorno" in testo.lower():
+                    giorni_colonne[j] = {
+                        "giorno": testo,
+                        "titolo": "",
+                        "descrizione": []
+                    }
+            riga_titoli_idx = i + 1 # La riga subito dopo contiene i titoli (es. Qualità, Facile)
+            continue
+        
+        # 3. Leggi la riga dei Titoli dell'allenamento
+        if i == riga_titoli_idx and giorni_colonne:
+            for j in giorni_colonne:
+                if j < len(riga):
+                    testo = str(riga[j]).strip()
+                    if testo:
+                        giorni_colonne[j]["titolo"] = testo
+            riga_titoli_idx = -1
+            continue
+        
+        # 4. Leggi le righe di Descrizione (riscaldamento, serie, defaticamento)
+        if giorni_colonne and riga_titoli_idx == -1:
+            # Se la riga è completamente vuota, saltala
+            if not any(str(c).strip() for c in riga):
+                continue
+                
+            for j in giorni_colonne:
+                if j < len(riga):
+                    testo = str(riga[j]).strip()
+                    if testo:
+                        giorni_colonne[j]["descrizione"].append(testo)
 
-    # Lettura Diario Atleta (Endurance)
+    # Salva l'ultima settimana processata nel dizionario
+    if settimana_corrente and giorni_colonne:
+        programma_endurance[settimana_corrente] = list(giorni_colonne.values())
+
+    # Lettura Report RPE
     if len(dati_storico) > 1:
         header_storico = dati_storico[0]
         dati_storico_puliti = [riga + [""] * (len(header_storico) - len(riga)) for riga in dati_storico[1:]]
@@ -770,46 +802,62 @@ with tab_workout:
                         st.warning("⚠️ Non hai compilato nessuna serie valida. Nessun dato salvato.")
 
         else:
-            # --- FORM ENDURANCE (Resta invariato perché non ha pulsanti dinamici "+/- serie") ---
+            # --- FORM ENDURANCE (Selezione a Tendina) ---
             if not programma_endurance:
-                st.warning("⚠️ Impossibile generare le settimane. Assicurati che nel foglio ci siano le colonne 'Settimana', 'Giorno' e 'Allenamento'.")
+                st.warning("⚠️ Impossibile generare le settimane. Assicurati che nel foglio ci sia scritto 'Settimana' e sotto 'Giorno X' per ogni allenamento.")
             else:
                 settimane_disponibili = list(programma_endurance.keys())
                 settimana_scelta = st.selectbox("📅 Seleziona la Settimana", settimane_disponibili)
                 
                 allenamenti_settimana = programma_endurance[settimana_scelta]
-                st.divider()
-                st.write("### I tuoi allenamenti")
+                # Filtro i giorni che hanno effettivamente contenuto (escludo i giorni di riposo vuoti)
+                giorni_validi = [a["giorno"] for a in allenamenti_settimana if a["titolo"] or a["descrizione"]]
                 
-                for idx, all_obj in enumerate(allenamenti_settimana):
-                    gio = all_obj["giorno"]
-                    txt_allenamento = all_obj["allenamento"]
+                if not giorni_validi:
+                    st.info("Nessun allenamento programmato per questa settimana.")
+                else:
+                    giorno_scelto = st.selectbox("🎯 Quale allenamento vuoi registrare oggi?", giorni_validi)
                     
-                    with st.expander(f"📍 {gio}", expanded=False):
-                        st.markdown(f"**Programma della seduta:**")
-                        st.info(txt_allenamento)
+                    # Trova i dettagli del giorno esatto scelto dall'atleta
+                    dettaglio_allenamento = next(a for a in allenamenti_settimana if a["giorno"] == giorno_scelto)
+                    
+                    st.divider()
+                    st.write("### 🏃‍♂️ Programma della seduta")
+                    
+                    titolo_all = dettaglio_allenamento['titolo']
+                    if titolo_all:
+                        st.markdown(f"**{titolo_all}**")
+                    
+                    testo_allenamento_completo = titolo_all + "\n\n" if titolo_all else ""
+                    
+                    # Stampa ogni blocco testuale del foglio in dei pratici riquadri Info per maggiore leggibilità
+                    for desc in dettaglio_allenamento['descrizione']:
+                        st.info(desc)
+                        testo_allenamento_completo += desc + "\n"
                         
-                        with st.form(key=f"form_endurance_{idx}"):
-                            st.write("**Com'è andata questa seduta?**")
-                            rpe_seduta = st.slider("Fatica percepita (RPE)", min_value=0.0, max_value=10.0, value=7.0, step=0.5, key=f"rpe_endurance_{idx}")
-                            feedback_seduta = st.text_area("Note / Feedback (Opzionale)", placeholder="Sensazioni, fatica, dolori...", key=f"feed_endurance_{idx}")
+                    st.divider()
+                    
+                    with st.form(key="form_endurance_single"):
+                        st.write("### 📝 Com'è andata?")
+                        rpe_seduta = st.slider("Fatica percepita (RPE)", min_value=0.0, max_value=10.0, value=7.0, step=0.5)
+                        feedback_seduta = st.text_area("Note / Feedback (Opzionale)", placeholder="Sensazioni, fatica, dolori...")
+                        
+                        if st.form_submit_button("💾 Salva Allenamento", type="primary", use_container_width=True):
+                            righe_da_inserire = []
                             
-                            if st.form_submit_button("💾 Salva Allenamento", type="primary", use_container_width=True):
-                                righe_da_inserire = []
-                                
-                                se_diario_vuoto = len(dati_storico) == 0
-                                if se_diario_vuoto:
-                                    righe_da_inserire.append(["Data", "Settimana", "Giorno", "Allenamento", "RPE", "Feedback"])
-                                
-                                righe_da_inserire.append([
-                                    str(data_sessione), settimana_scelta, gio, txt_allenamento,
-                                    str(rpe_seduta).replace(".", ","), feedback_seduta
-                                ])
-                                
-                                try:
-                                    sheet_storico.append_rows(righe_da_inserire, value_input_option='USER_ENTERED')
-                                    scarica_dati_fogli.clear()
-                                    st.session_state.dati_salvati = True
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Errore durante il salvataggio: {e}")
+                            se_diario_vuoto = len(dati_storico) == 0
+                            if se_diario_vuoto:
+                                righe_da_inserire.append(["Data", "Settimana", "Giorno", "Allenamento", "RPE", "Feedback"])
+                            
+                            righe_da_inserire.append([
+                                str(data_sessione), settimana_scelta, giorno_scelto, 
+                                testo_allenamento_completo.strip(), str(rpe_seduta).replace(".", ","), feedback_seduta
+                            ])
+                            
+                            try:
+                                sheet_storico.append_rows(righe_da_inserire, value_input_option='USER_ENTERED')
+                                scarica_dati_fogli.clear()
+                                st.session_state.dati_salvati = True
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Errore durante il salvataggio: {e}")
