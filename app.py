@@ -858,10 +858,30 @@ with tab_workout:
                     
                     testo_allenamento_completo = titolo_all + "\n\n" if titolo_all else ""
                     
-                    # Stampa ogni blocco testuale del foglio in dei pratici riquadri Info per maggiore leggibilità
-                    for desc in dettaglio_allenamento['descrizione']:
-                        st.info(desc)
-                        testo_allenamento_completo += desc + "\n"
+                    # Stampa ogni blocco testuale formattato
+                    for i, desc in enumerate(dettaglio_allenamento['descrizione']):
+                        desc_pulita = desc.strip()
+                        
+                        # Se è la prima riga e contiene il tempo totale (es. "Lungo lento - 50'")
+                        if i == 0 and ("-" in desc_pulita or "min" in desc_pulita.lower() or "'" in desc_pulita):
+                            st.markdown(f"### 🏃‍♂️ Obiettivo: **{desc_pulita}**")
+                            st.markdown("---")
+                        else:
+                            # Abbellisce le fasi con icone in base alle parole chiave
+                            if "riscaldamento" in desc_pulita.lower():
+                                icona = "🟢"
+                            elif "defaticamento" in desc_pulita.lower():
+                                icona = "🔵"
+                            elif "z2" in desc_pulita.lower() or "z3" in desc_pulita.lower() or "z4" in desc_pulita.lower():
+                                icona = "🔥"
+                            else:
+                                icona = "⏱️"
+                                
+                            # Evidenzia il passo mettendolo in grassetto se tra parentesi quadre
+                            import re
+                            desc_evidenziata = re.sub(r'\[(.*?)\]', r'**[🎯 Passo: \1 min/km]**', desc_pulita)
+                            
+                            st.info(f"{icona} {desc_evidenziata}")
                         
                     st.divider()
                     
