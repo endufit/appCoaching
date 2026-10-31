@@ -289,7 +289,7 @@ except Exception as e:
 def scarica_dati_fogli_v2(id_atleta, _prog, _storico):
     return _prog.get_all_values(), _storico.get_all_values()
 
-dati_programma, dati_storico = scarica_dati_fogli(id_foglio, sheet_programma, sheet_storico)
+dati_programma, dati_storico = scarica_dati_fogli_v2(id_foglio, sheet_programma, sheet_storico)
 @st.cache_data(ttl=86400) 
 def cerca_immagine_esercizio(nome_esercizio):
     nome_lower = nome_esercizio.lower().strip()
@@ -819,7 +819,7 @@ with tab_workout:
                     if len(righe_da_inserire) > 0:
                         try:
                             sheet_storico.append_rows(righe_da_inserire, value_input_option='USER_ENTERED')
-                            scarica_dati_fogli.clear()
+                            scarica_dati_fogli_v2.clear()
                             st.session_state.dati_salvati = True
                             st.session_state.contatore_serie = {} 
                             st.session_state.es_aperto = None 
@@ -884,7 +884,7 @@ with tab_workout:
                             
                             try:
                                 sheet_storico.append_rows(righe_da_inserire, value_input_option='USER_ENTERED')
-                                scarica_dati_fogli.clear()
+                                scarica_dati_fogli_v2.clear()
                                 st.session_state.dati_salvati = True
                                 st.rerun()
                             except Exception as e:
