@@ -234,15 +234,41 @@ if not id_foglio:
 def ottieni_fogli_google(foglio_id, _client_gspread):
     try:
         sp = _client_gspread.open_by_key(foglio_id)
-        sh_prog = sp.get_worksheet(0)
+        fogli_disponibili = sp.worksheets()
         
-        # IDENTIFICATORE: Se il primo foglio si chiama "Programma coach", è Fitness. Altrimenti, è Endurance.
-        is_fit = sh_prog.title.lower().strip() == "programma coach"
+        sh_prog = None
+        is_fit = False
         
-        # MODIFICA: Seleziona il foglio corretto per il salvataggio
+        # 1. Controlla se è un foglio Fitness ("Programma coach")
+        for ws in fogli_disponibili:
+            if ws.title.lower().strip() == "programma coach":
+                sh_prog = ws
+                is_fit = True
+                break
+        
+        # 2. Se non è Fitness, cerca il foglio Endurance ("MACROCICLO")
+        if not sh_prog:
+            for ws in fogli_disponibili:
+                titolo = ws.title.lower().strip()
+                if "macrociclo" in titolo or "programma" in titolo:
+                    sh_prog = ws
+                    break
+        
+        # 3. Fallback: prende il primo foglio utile ignorando i report o "Test"
+        if not sh_prog:
+            for ws in fogli_disponibili:
+                titolo = ws.title.lower().strip()
+                if titolo not in ["diario atleta", "report rpe", "test"]:
+                    sh_prog = ws
+                    break
+                    
+        # Ultima spiaggia: prende il primo foglio in assoluto
+        if not sh_prog:
+            sh_prog = fogli_disponibili[0]
+        
+        # Determina dove salvare i dati
         nome_foglio_salvataggio = "Diario Atleta" if is_fit else "Report RPE"
         
-        # Cerca il foglio storico/report o lo crea al volo
         try:
             sh_stor = sp.worksheet(nome_foglio_salvataggio) 
         except gspread.exceptions.WorksheetNotFound:
