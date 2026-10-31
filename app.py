@@ -430,23 +430,31 @@ else:
     riga_titoli_idx = -1
     
     for i, riga in enumerate(dati_programma):
-        riga_str = " ".join([str(c).lower() for c in riga])
+        # Converte l'intera riga in una singola stringa per cercare parole chiave, ignorando spazi vuoti
+        riga_testo_unito = " ".join([str(c).lower().strip() for c in riga if str(c).strip()])
         
-        # 1. Cerca l'inizio di una nuova Settimana
-        if "settimana" in riga_str:
+        # 1. Cerca l'inizio di una nuova Settimana (se la riga contiene la parola "settimana")
+        if "settimana" in riga_testo_unito:
+            # Salva la settimana precedente prima di iniziare la nuova
             if settimana_corrente and giorni_colonne:
                 programma_endurance[settimana_corrente] = list(giorni_colonne.values())
             
+            # Cerca il testo esatto della settimana nella riga
             for cella in riga:
                 testo = str(cella).strip()
                 if "settimana" in testo.lower():
-                    settimana_corrente = testo
+                    # Pulisce eventuali a capo estranei dalla cella di Google Sheets
+                    settimana_corrente = testo.replace('\n', ' - ')
                     break
             giorni_colonne = {}
             continue
         
+        # Se non abbiamo ancora trovato una settimana, salta la riga
+        if not settimana_corrente:
+            continue
+            
         # 2. Cerca la riga con le etichette "Giorno 1", "Giorno 2", ecc.
-        if "giorno " in riga_str and settimana_corrente:
+        if "giorno" in riga_testo_unito and not giorni_colonne:
             for j, cella in enumerate(riga):
                 testo = str(cella).strip()
                 if "giorno" in testo.lower():
@@ -455,10 +463,10 @@ else:
                         "titolo": "",
                         "descrizione": []
                     }
-            riga_titoli_idx = i + 1 # La riga subito dopo contiene i titoli (es. Qualità, Facile)
+            riga_titoli_idx = i + 1
             continue
-        
-        # 3. Leggi la riga dei Titoli dell'allenamento
+            
+        # 3. Leggi la riga dei Titoli dell'allenamento (subito sotto la riga dei Giorni)
         if i == riga_titoli_idx and giorni_colonne:
             for j in giorni_colonne:
                 if j < len(riga):
@@ -467,20 +475,16 @@ else:
                         giorni_colonne[j]["titolo"] = testo
             riga_titoli_idx = -1
             continue
-        
-        # 4. Leggi le righe di Descrizione (riscaldamento, serie, defaticamento)
+            
+        # 4. Leggi le righe di Descrizione
         if giorni_colonne and riga_titoli_idx == -1:
-            # Se la riga è completamente vuota, saltala
-            if not any(str(c).strip() for c in riga):
-                continue
-                
             for j in giorni_colonne:
                 if j < len(riga):
                     testo = str(riga[j]).strip()
                     if testo:
                         giorni_colonne[j]["descrizione"].append(testo)
 
-    # Salva l'ultima settimana processata nel dizionario
+    # Salva l'ultima settimana elaborata dal ciclo
     if settimana_corrente and giorni_colonne:
         programma_endurance[settimana_corrente] = list(giorni_colonne.values())
 
