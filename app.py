@@ -635,8 +635,8 @@ with tab_dash:
         st.header("Dashboard Analitica 🏃‍♂️")
         df_stat = df_storico.copy() if not df_storico.empty else pd.DataFrame()
         
-        # Per endurance il diario ha tipicamente: [Data, Settimana, Giorno, Allenamento, RPE, Feedback]
-        if not df_stat.empty and len(df_stat.columns) >= 5:
+        # Per endurance il diario ha 3 colonne: [Data, RPE, Feedback]
+        if not df_stat.empty and len(df_stat.columns) >= 3:
             col_data = next((col for col in df_stat.columns if "data" in str(col).lower()), df_stat.columns[0])
             df_stat["Data_dt"] = pd.to_datetime(df_stat[col_data], errors="coerce", dayfirst=True)
             df_stat = df_stat.dropna(subset=["Data_dt"])
@@ -876,11 +876,11 @@ with tab_workout:
                             
                             se_diario_vuoto = len(dati_storico) == 0
                             if se_diario_vuoto:
-                                righe_da_inserire.append(["Data", "Settimana", "Giorno", "Allenamento", "RPE", "Feedback"])
+                                righe_da_inserire.append(["Data", "RPE", "Feedback"])
                             
+                            # Inserisce ESATTAMENTE 3 colonne: Data, RPE e Feedback
                             righe_da_inserire.append([
-                                str(data_sessione), settimana_scelta, giorno_scelto, 
-                                testo_allenamento_completo.strip(), str(rpe_seduta).replace(".", ","), feedback_seduta
+                                str(data_sessione), str(rpe_seduta).replace(".", ","), feedback_seduta
                             ])
                             
                             try:
