@@ -1,0 +1,51 @@
+name: Risveglio Automatico Streamlit
+
+on:
+  schedule:
+    - cron: "0 */12 * * *" # Si attiva ogni 12 ore
+  workflow_dispatch: # Ti permette di attivarlo anche a mano dal pannello GitHub
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Installa Playwright (Browser Reale)
+        run: |
+          pip install playwright
+          playwright install chromium
+          
+      - name: Visita l'app e clicca il bottone
+        run: |
+          python -c "
+          from playwright.sync_api import sync_playwright
+          import time
+
+          # Inserisci qui il link della tua app Streamlit
+          URL = 'https://NOME-DELLA-TUA-APP.streamlit.app'
+
+          with sync_playwright() as p:
+              print(f'Apertura browser e navigazione su {URL}...')
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page()
+              page.goto(URL, wait_until='networkidle')
+              time.sleep(5)
+              
+              # Cerca e clicca il bottone di risveglio se l'app è ibernata
+              try:
+                  bottone = page.get_by_role('button', name='Yes, get this app back up!')
+                  if bottone.is_visible(timeout=3000):
+                      print('App ibernata! Clicco il bottone di risveglio...')
+                      bottone.click()
+                      time.sleep(10) # Aspetta che l'app si ricarichi
+                  else:
+                      print('App già sveglia e funzionante.')
+              except Exception as e:
+                  print('Nessun bottone trovato, traffico umano registrato.')
+                  
+              browser.close()
+          "
