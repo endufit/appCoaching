@@ -26,7 +26,7 @@ jobs:
           import time
 
           # Inserisci qui il link della tua app Streamlit
-          URL = 'https://NOME-DELLA-TUA-APP.streamlit.app'
+          URL = 'https://appcoaching-g38b85ppjr7kvgu84yehzt.streamlit.app/'
 
           with sync_playwright() as p:
               print(f'Apertura browser e navigazione su {URL}...')
