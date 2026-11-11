@@ -810,7 +810,7 @@ with tab_workout:
 
                 st.divider()
                 st.write("### Fine Allenamento")
-                rpe_globale = st.slider("Fatica percepita (10=massima, 0=nessuna)", min_value=0.0, max_value=10.0, value=7.0, step=0.5)
+                rpe_globale = st.slider("Fatica percepita (10 = massima, 0 = nessuna)", min_value=0.0, max_value=10.0, value=7.0, step=0.5)
                 feedback_globale = st.text_area("Feedback / Dolori (Opzionale)", placeholder="Annotazioni sull'allenamento appena concluso")
                 
                 st.divider()
