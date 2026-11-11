@@ -425,12 +425,21 @@ if is_fitness:
 
     riga_header_storico = -1
     for i, riga in enumerate(dati_storico):
-        if "Esercizio" in riga and "Kg Sollevati" in riga:
+        riga_lower = [str(c).lower().strip() for c in riga]
+        if "esercizio" in riga_lower and ("kg sollevati" in riga_lower or "kg sollevati / secondi" in riga_lower or "data" in riga_lower):
             riga_header_storico = i
             break
 
     if riga_header_storico != -1 and len(dati_storico) > riga_header_storico + 1:
-        header_storico = dati_storico[riga_header_storico]
+        header_storico = []
+        for h in dati_storico[riga_header_storico]:
+            testo_h = str(h).strip()
+            if testo_h.lower() == "data": header_storico.append("Data")
+            elif testo_h.lower() == "esercizio": header_storico.append("Esercizio")
+            elif testo_h.lower() in ["kg sollevati", "kg sollevati / secondi"]: header_storico.append("Kg Sollevati / Secondi")
+            elif testo_h.lower() == "rpe": header_storico.append("RPE")
+            else: header_storico.append(testo_h)
+            
         dati_storico_puliti = [riga + [""] * (len(header_storico) - len(riga)) for riga in dati_storico[riga_header_storico+1:]]
         df_storico = pd.DataFrame(dati_storico_puliti, columns=header_storico)
     else:
@@ -443,26 +452,47 @@ if is_fitness:
         
         sep = " | " 
         
-        # 1. Base: Serie x Ripetizioni (es. 4 x 10, oppure 4 x 30")
         if s_val != "?" and r_val != "?": base_str = f"{s_val} x {r_val}"
         elif s_val != "?": base_str = f"{s_val} Set"
         elif r_val != "?": base_str = f"{r_val} rip"
         else: base_str = "Set liberi"
             
-        # 2. Recupero
         str_recupero = f"{sep}{rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
-        
-        # 3. Carico: Legge RIGOROSAMENTE solo la colonna "Carico" del coach
         kg_finale = ""
-        c_val = str(carico_coach).strip()
         
-        if c_val not in ["", "N/D", "nan", "-1", "?"]: 
-            # Se hai già scritto tu "kg" o se hai inserito del testo specifico, lo lascia intatto.
-            if "kg" in c_val.lower() or "'" in c_val or '"' in c_val:
-                kg_finale = f"{sep}{c_val}"
-            else:
-                # Se hai inserito solo un numero (es. 15), aggiunge "kg" di default.
-                kg_finale = f"{sep}{c_val} kg"
+        # --- FIX: CAPISCE SE L'ESERCIZIO È A MINUTI, SECONDI O CORPO LIBERO ---
+        carico_vuoto = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
+        ha_minuti = "'" in str(rip_coach)
+        ha_secondi = '"' in str(rip_coach)
+        
+        # LEGGE LO STORICO
+        if not df_storico.empty and "Esercizio" in df_storico.columns and "Kg Sollevati / Secondi" in df_storico.columns:
+            df_es = df_storico[df_storico["Esercizio"] == es_nome]
+            pesi_validi = df_es[~df_es["Kg Sollevati / Secondi"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan", "00"])]
+            
+            if not pesi_validi.empty:
+                ultimi_kg = str(pesi_validi["Kg Sollevati / Secondi"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
+                
+                if ha_minuti and carico_vuoto:
+                    kg_finale = f"{sep}{ultimi_kg}'"
+                elif ha_secondi and carico_vuoto:
+                    kg_finale = f"{sep}{ultimi_kg}''"
+                elif carico_vuoto:
+                    kg_finale = f"{sep}{ultimi_kg}"
+                else:
+                    if "kg" in ultimi_kg.lower():
+                        kg_finale = f"{sep}{ultimi_kg}"
+                    else:
+                        kg_finale = f"{sep}{ultimi_kg} kg"
+                
+        # SE NON C'È STORICO, USA IL DATO DEL COACH
+        if kg_finale == "":
+            c_val = str(carico_coach).strip()
+            if c_val not in ["", "N/D", "nan", "-1", "?"]: 
+                if "kg" in c_val.lower():
+                    kg_finale = f"{sep}{c_val}"
+                else:
+                    kg_finale = f"{sep}{c_val} kg"
                 
         return f"{base_str}{kg_finale}{str_recupero}"
 else:
@@ -758,20 +788,20 @@ with tab_workout:
                         
                         # --- LOGICA COLONNE ---
                         carico_vuoto = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
-                        ha_apostrofi = "'" in str(rip_coach) or '"' in str(rip_coach)
+                        ha_minuti = "'" in str(rip_coach)
+                        ha_secondi = '"' in str(rip_coach)
                         
                         if not carico_vuoto:
-                            # Se c'è il carico, la colonna 2 è "Kg"
                             etichetta_col2 = "Kg"
                             step_col2 = 0.5
                         else:
-                            # Se NON c'è il carico
-                            if ha_apostrofi:
-                                # È a tempo, quindi la colonna 2 è "Secondi"
+                            if ha_minuti:
+                                etichetta_col2 = "Minuti"
+                                step_col2 = 1.0
+                            elif ha_secondi:
                                 etichetta_col2 = "Secondi"
                                 step_col2 = 5.0
                             else:
-                                # Altrimenti rimangono i "Kg" di default
                                 etichetta_col2 = "Kg"
                                 step_col2 = 0.5
                         
@@ -816,6 +846,8 @@ with tab_workout:
                 st.divider()
                 if st.button("💾 Consegna Intero Allenamento", type="primary", use_container_width=True):
                     righe_da_inserire = []
+                    if len(dati_storico) == 0:
+                        righe_da_inserire.append(["Data", "Esercizio", "Serie", "Ripetizioni", "Kg Sollevati / Secondi", "Tonnellaggio", "RPE", "Feedback"])
                     for es_obj in esercizi_assegnati:
                         es = es_obj["nome"]
                         for i in range(st.session_state.contatore_serie[es]):
