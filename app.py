@@ -455,44 +455,26 @@ if is_fitness:
         
         sep = " | " 
         
+        # 1. Base: Serie x Ripetizioni (es. 4 x 10, 1 x 8')
         if s_val != "?" and r_val != "?": base_str = f"{s_val} x {r_val}"
         elif s_val != "?": base_str = f"{s_val} Set"
         elif r_val != "?": base_str = f"{r_val} rip"
         else: base_str = "Set liberi"
             
+        # 2. Recupero
         str_recupero = f"{sep}{rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
+        
+        # 3. Carico: Legge RIGOROSAMENTE solo la colonna "Carico" del coach (nessuno storico)
         kg_finale = ""
+        c_val = str(carico_coach).strip()
         
-        carico_vuoto = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
-        ha_minuti = "'" in str(rip_coach)
-        ha_secondi = '"' in str(rip_coach)
-        
-        # LEGGE LO STORICO
-        if not df_storico.empty and "Esercizio" in df_storico.columns and "Kg Sollevati / Secondi / Minuti" in df_storico.columns:
-            df_es = df_storico[df_storico["Esercizio"] == es_nome]
-            pesi_validi = df_es[~df_es["Kg Sollevati / Secondi / Minuti"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan", "00"])]
-            
-            if not pesi_validi.empty:
-                ultimi_kg = str(pesi_validi["Kg Sollevati / Secondi / Minuti"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
-                
-                # Se il salvataggio ha già le unità di misura, le stampa direttamente!
-                if any(simbolo in ultimi_kg.lower() for simbolo in ["kg", "'", '"']):
-                    kg_finale = f"{sep}{ultimi_kg}"
-                else:
-                    # Fallback di sicurezza per i vecchissimi allenamenti salvati solo con i numeri
-                    if ha_minuti and carico_vuoto: kg_finale = f"{sep}{ultimi_kg}'"
-                    elif ha_secondi and carico_vuoto: kg_finale = f"{sep}{ultimi_kg}''"
-                    elif carico_vuoto: kg_finale = f"{sep}{ultimi_kg}"
-                    else: kg_finale = f"{sep}{ultimi_kg} kg"
-                
-        # SE NON C'È STORICO, USA IL DATO DEL COACH
-        if kg_finale == "":
-            c_val = str(carico_coach).strip()
-            if c_val not in ["", "N/D", "nan", "-1", "?"]: 
-                if "kg" in c_val.lower():
-                    kg_finale = f"{sep}{c_val}"
-                else:
-                    kg_finale = f"{sep}{c_val} kg"
+        if c_val not in ["", "N/D", "nan", "-1", "?"]: 
+            # Se hai già scritto tu "kg", "'" (minuti) o '"' (secondi), lo lascia intatto
+            if any(simbolo in c_val.lower() for simbolo in ["kg", "'", '"']):
+                kg_finale = f"{sep}{c_val}"
+            else:
+                # Se hai inserito solo un numero (es. 15), aggiunge "kg" di default
+                kg_finale = f"{sep}{c_val} kg"
                 
         return f"{base_str}{kg_finale}{str_recupero}"
 else:
