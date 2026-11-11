@@ -617,14 +617,26 @@ with tab_dash:
                     st.info("Nessun dato RPE registrato.")
 
             with col_graf_2:
-                st.write("**Distribuzione Carico (Tonnellaggio)**")
+                st.write("**Distribuzione Volume (Serie per Gruppo)**")
+                
+                # --- DIZIONARIO ESPANSO E OTTIMIZZATO ---
                 mappa_muscoli = {
-                    "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegament": "Petto", "pectoral": "Petto",
-                    "lat machine": "Schiena", "trazion": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull": "Schiena", "row": "Schiena", "dorso": "Schiena", "schiena": "Schiena",
-                    "squat": "Gambe", "pressa": "Gambe", "leg press": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affond": "Gambe", "polpacc": "Gambe", "stacco": "Gambe", "calf": "Gambe", "glute": "Gambe",
-                    "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoid": "Spalle",
-                    "curl": "Bicipiti", "bicipit": "Bicipiti", "bicep": "Bicipiti",
-                    "french": "Tricipiti", "tricipit": "Tricipiti", "pushdown": "Tricipiti", "kickback": "Tricipiti", "tricep": "Tricipiti", "extension": "Tricipiti"
+                    # PETTO
+                    "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegament": "Petto", "pectoral": "Petto", "push up": "Petto", "cavi": "Petto",
+                    # SCHIENA
+                    "lat": "Schiena", "trazion": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull down": "Schiena", "pull-down": "Schiena", "pullup": "Schiena", "pull up": "Schiena", "row": "Schiena", "dorso": "Schiena", "schiena": "Schiena", "t-bar": "Schiena", "chin up": "Schiena", "chin-up": "Schiena",
+                    # GAMBE & GLUTEI
+                    "squat": "Gambe", "pressa": "Gambe", "leg press": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affond": "Gambe", "lunge": "Gambe", "polpacc": "Gambe", "stacco": "Gambe", "deadlift": "Gambe", "calf": "Gambe", "glute": "Gambe", "hip thrust": "Gambe", "bulgarian": "Gambe", "abductor": "Gambe", "adductor": "Gambe", "abd": "Gambe",
+                    # SPALLE
+                    "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoid": "Spalle", "face pull": "Spalle", "tirate": "Spalle", "arnold": "Spalle",
+                    # BICIPITI
+                    "curl": "Bicipiti", "bicipit": "Bicipiti", "bicep": "Bicipiti", "hammer": "Bicipiti",
+                    # TRICIPITI
+                    "french": "Tricipiti", "tricipit": "Tricipiti", "pushdown": "Tricipiti", "push down": "Tricipiti", "kickback": "Tricipiti", "tricep": "Tricipiti", "extension": "Tricipiti", "skullcrusher": "Tricipiti",
+                    # ADDOME E CORE
+                    "crunch": "Addome", "plank": "Addome", "addominal": "Addome", "sit up": "Addome", "sit-up": "Addome", "core": "Addome", "russian twist": "Addome", "leg raise": "Addome", "ab roller": "Addome", "deadbug": "Addome", "side bend": "Addome",
+                    # CARDIO & METABOLICO
+                    "tapis roulant": "Cardio", "camminata": "Cardio", "corsa": "Cardio", "run": "Cardio", "bike": "Cardio", "cyclette": "Cardio", "vogatore": "Cardio", "rower": "Cardio", "ellittica": "Cardio", "stairmaster": "Cardio", "jump": "Cardio", "salto": "Cardio", "corda": "Cardio", "burpee": "Cardio", "jumping jack": "Cardio", "skipping": "Cardio"
                 }
                 
                 def assegna_muscolo(es):
@@ -634,30 +646,35 @@ with tab_dash:
                     return "Altro"
 
                 df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
-                col_tonn = next((col for col in df_stat.columns if "tonnellagg" in str(col).lower()), None)
-                if col_tonn: df_stat["Tonn_num"] = pd.to_numeric(df_stat[col_tonn].astype(str).replace(",", ".", regex=True), errors="coerce").fillna(0)
-                else: df_stat["Tonn_num"] = 0
-                    
-                df_muscoli = df_stat.groupby("Gruppo")["Tonn_num"].sum().reset_index(name="Tonnellaggio Totale")
-                df_muscoli = df_muscoli[df_muscoli["Tonnellaggio Totale"] > 0]
+                
+                # --- CALCOLO PER VOLUME (NUMERO DI SERIE VALIDE) INVECE CHE TONNELLAGGIO ---
+                # Ogni riga salvata su Sheets equivale a 1 serie completata dall'atleta
+                df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie Totali")
+                df_muscoli = df_muscoli[df_muscoli["Serie Totali"] > 0]
                 
                 if not df_muscoli.empty:
-                    totale_carico = df_muscoli["Tonnellaggio Totale"].sum()
-                    df_muscoli["Percentuale"] = (df_muscoli["Tonnellaggio Totale"] / totale_carico) * 100
+                    totale_serie = df_muscoli["Serie Totali"].sum()
+                    df_muscoli["Percentuale"] = (df_muscoli["Serie Totali"] / totale_serie) * 100
                     df_muscoli["Label"] = df_muscoli["Percentuale"].apply(lambda x: f"{x:.0f}%" if x >= 3 else "")
                     
+                    # Colori personalizzati per distinguere i gruppi a colpo d'occhio
+                    color_scale = alt.Scale(
+                        domain=["Petto", "Schiena", "Gambe", "Spalle", "Bicipiti", "Tricipiti", "Addome", "Cardio", "Altro"],
+                        range=["#e63946", "#2997ff", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f43f5e", "#64748b"]
+                    )
+                    
                     base_chart = alt.Chart(df_muscoli).encode(
-                        theta=alt.Theta(field="Tonnellaggio Totale", type="quantitative", stack=True),
-                        color=alt.Color(field="Gruppo", type="nominal", scale=alt.Scale(scheme="category10"), legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)"))
+                        theta=alt.Theta(field="Serie Totali", type="quantitative", stack=True),
+                        color=alt.Color(field="Gruppo", type="nominal", scale=color_scale, legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)"))
                     )
                     ciambella = base_chart.mark_arc(innerRadius=45, outerRadius=90, stroke="#050A18", strokeWidth=2).encode(
-                        tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Tonnellaggio Totale:Q", format=".0f", title="Carico")]
+                        tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Serie Totali:Q", title="Serie Eseguite")]
                     )
                     testo = base_chart.mark_text(radius=115, fill="white", size=11, fontWeight="bold").encode(text="Label:N")
                     grafico_finale = (ciambella + testo).properties(height=250).configure_view(strokeWidth=0).configure(background='transparent')
                     st.altair_chart(grafico_finale, use_container_width=True)
                 else:
-                    st.info("Nessun carico registrato.")
+                    st.info("Nessun volume registrato.")
 
     else:
         # --- DASHBOARD ENDURANCE ---
