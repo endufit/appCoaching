@@ -57,10 +57,6 @@ st.markdown("""
             background-color: #0f172a !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
-        ul[role="listbox"] li, ul[data-baseweb="menu"] li {
-            color: #ffffff !important;
-            background-color: transparent !important;
-        }
         
         /* Testo scuro dentro gli input per massima leggibilità */
         input, select, textarea, div[data-baseweb="select"] span {
