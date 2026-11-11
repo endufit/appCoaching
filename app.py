@@ -33,14 +33,30 @@ st.markdown("""
             color: rgba(255,255,255,0.7) !important; 
         }
         
-        /* FIX CAMPI DI INPUT E TESTI INVISIBILI */
+        /* FIX CAMPI DI INPUT E MENU A TENDINA */
         div[data-baseweb="input"] > div,
         div[data-baseweb="select"] > div,
         div[data-baseweb="textarea"] > div,
         div[data-baseweb="base-input"] {
-            background-color: #f1f5f9 !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
             border-radius: 8px !important;
+        }
+        
+        /* Testo BIANCO dentro gli input e le tendine */
+        input, select, textarea, div[data-baseweb="select"] span {
+            background-color: transparent !important;
+            color: #ffffff !important; 
+            font-weight: 600 !important;
+        }
+
+        /* Colore della lista quando ci clicchi sopra per aprirla */
+        ul[role="listbox"], ul[data-baseweb="menu"] {
+            background-color: #0f172a !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        ul[role="listbox"] li, ul[data-baseweb="menu"] li {
+            color: #ffffff !important;
         }
         
         /* Testo scuro dentro gli input per massima leggibilità */
