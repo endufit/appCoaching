@@ -33,7 +33,7 @@ st.markdown("""
             color: rgba(255,255,255,0.7) !important; 
         }
         
-        /* FIX CAMPI DI INPUT E MENU A TENDINA */
+        /* FIX CAMPI DI INPUT E SFONDO TENDINA */
         div[data-baseweb="input"] > div,
         div[data-baseweb="select"] > div,
         div[data-baseweb="textarea"] > div,
@@ -43,19 +43,27 @@ st.markdown("""
             border-radius: 8px !important;
         }
         
-        /* Testo BIANCO dentro gli input, textarea e valore SELEZIONATO della tendina */
-        input, select, textarea, 
-        div[data-baseweb="select"] span,
-        div[data-baseweb="select"] div {
+        /* 1. TESTO BIANCO SUGLI INPUT NATIVI E TEXTAREA */
+        input, select, textarea {
             color: #ffffff !important; 
+            -webkit-text-fill-color: #ffffff !important;
             font-weight: 600 !important;
             background-color: transparent !important;
         }
+        
+        /* 2. FORZATURA NUCLEARE SU QUALSIASI ELEMENTO DENTRO LA TENDINA (Placeholder incluso) */
+        div[data-baseweb="select"] * {
+            color: #ffffff !important; 
+            -webkit-text-fill-color: #ffffff !important;
+        }
 
-        /* Colore della lista quando ci clicchi sopra per aprirla */
+        /* 3. SFONDO E TESTO DELLA LISTA QUANDO APRI LA TENDINA */
         ul[role="listbox"], ul[data-baseweb="menu"] {
             background-color: #0f172a !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        ul[role="listbox"] *, ul[data-baseweb="menu"] * {
+            color: #ffffff !important;
         }
         
         /* Testo scuro dentro gli input per massima leggibilità */
