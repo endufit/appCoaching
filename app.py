@@ -651,13 +651,26 @@ with tab_dash:
                     
                     base_chart = alt.Chart(df_muscoli).encode(
                         theta=alt.Theta(field="Serie Totali", type="quantitative", stack=True),
-                        color=alt.Color(field="Gruppo", type="nominal", scale=color_scale, legend=alt.Legend(title="", labelColor="rgba(255,255,255,0.7)"))
+                        color=alt.Color(
+                            field="Gruppo", 
+                            type="nominal", 
+                            scale=color_scale, 
+                            legend=alt.Legend(
+                                title="", 
+                                labelColor="rgba(255,255,255,0.7)",
+                                orient="bottom", # Sposta la legenda sotto il grafico
+                                columns=3,       # Divide la lista in 3 colonne
+                                labelFontSize=12
+                            )
+                        )
                     )
                     ciambella = base_chart.mark_arc(innerRadius=45, outerRadius=90, stroke="#050A18", strokeWidth=2).encode(
                         tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Serie Totali:Q", title="Serie Eseguite")]
                     )
                     testo = base_chart.mark_text(radius=115, fill="white", size=11, fontWeight="bold").encode(text="Label:N")
-                    grafico_finale = (ciambella + testo).properties(height=250).configure_view(strokeWidth=0).configure(background='transparent')
+                    
+                    # Aumentato l'height a 320 per dare respiro alla nuova legenda sotto
+                    grafico_finale = (ciambella + testo).properties(height=320).configure_view(strokeWidth=0).configure(background='transparent')
                     st.altair_chart(grafico_finale, use_container_width=True)
                 else:
                     st.info("Nessun volume registrato.")
