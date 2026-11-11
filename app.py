@@ -413,7 +413,7 @@ if is_fitness:
     else:
         df_storico = pd.DataFrame()
 
-   def ottieni_testo_titolo(es_nome, serie_coach, rip_coach, carico_coach, recupero_coach):
+    def ottieni_testo_titolo(es_nome, serie_coach, rip_coach, carico_coach, recupero_coach):
         s_val = str(serie_coach).strip() if str(serie_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
         r_val = str(rip_coach).strip() if str(rip_coach).strip() not in ["", "N/D", "nan", "?"] else "?"
         rec_val = str(recupero_coach).strip()
