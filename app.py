@@ -426,7 +426,8 @@ if is_fitness:
     riga_header_storico = -1
     for i, riga in enumerate(dati_storico):
         riga_lower = [str(c).lower().strip() for c in riga]
-        if "esercizio" in riga_lower and ("kg sollevati" in riga_lower or "kg sollevati / secondi" in riga_lower or "data" in riga_lower):
+        # Cerca tutte le varianti passate e presenti del nome della colonna
+        if "esercizio" in riga_lower and any(col in riga_lower for col in ["kg sollevati", "kg sollevati / secondi", "kg sollevati / secondi / minuti", "data"]):
             riga_header_storico = i
             break
 
@@ -434,10 +435,12 @@ if is_fitness:
         header_storico = []
         for h in dati_storico[riga_header_storico]:
             testo_h = str(h).strip()
-            if testo_h.lower() == "data": header_storico.append("Data")
-            elif testo_h.lower() == "esercizio": header_storico.append("Esercizio")
-            elif testo_h.lower() in ["kg sollevati", "kg sollevati / secondi"]: header_storico.append("Kg Sollevati / Secondi")
-            elif testo_h.lower() == "rpe": header_storico.append("RPE")
+            testo_lower = testo_h.lower()
+            if testo_lower == "data": header_storico.append("Data")
+            elif testo_lower == "esercizio": header_storico.append("Esercizio")
+            elif testo_lower in ["kg sollevati", "kg sollevati / secondi", "kg sollevati / secondi / minuti"]: 
+                header_storico.append("Kg Sollevati / Secondi / Minuti")
+            elif testo_lower == "rpe": header_storico.append("RPE")
             else: header_storico.append(testo_h)
             
         dati_storico_puliti = [riga + [""] * (len(header_storico) - len(riga)) for riga in dati_storico[riga_header_storico+1:]]
@@ -460,30 +463,27 @@ if is_fitness:
         str_recupero = f"{sep}{rec_val}" if rec_val not in ["", "N/D", "nan", "?"] else ""
         kg_finale = ""
         
-        # --- FIX: CAPISCE SE L'ESERCIZIO È A MINUTI, SECONDI O CORPO LIBERO ---
         carico_vuoto = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
         ha_minuti = "'" in str(rip_coach)
         ha_secondi = '"' in str(rip_coach)
         
         # LEGGE LO STORICO
-        if not df_storico.empty and "Esercizio" in df_storico.columns and "Kg Sollevati / Secondi" in df_storico.columns:
+        if not df_storico.empty and "Esercizio" in df_storico.columns and "Kg Sollevati / Secondi / Minuti" in df_storico.columns:
             df_es = df_storico[df_storico["Esercizio"] == es_nome]
-            pesi_validi = df_es[~df_es["Kg Sollevati / Secondi"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan", "00"])]
+            pesi_validi = df_es[~df_es["Kg Sollevati / Secondi / Minuti"].astype(str).str.strip().isin(["", "0", "0,0", "0.0", "nan", "00"])]
             
             if not pesi_validi.empty:
-                ultimi_kg = str(pesi_validi["Kg Sollevati / Secondi"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
+                ultimi_kg = str(pesi_validi["Kg Sollevati / Secondi / Minuti"].iloc[-1]).strip().replace(",0", "").replace(".0", "")
                 
-                if ha_minuti and carico_vuoto:
-                    kg_finale = f"{sep}{ultimi_kg}'"
-                elif ha_secondi and carico_vuoto:
-                    kg_finale = f"{sep}{ultimi_kg}''"
-                elif carico_vuoto:
+                # Se il salvataggio ha già le unità di misura, le stampa direttamente!
+                if any(simbolo in ultimi_kg.lower() for simbolo in ["kg", "'", '"']):
                     kg_finale = f"{sep}{ultimi_kg}"
                 else:
-                    if "kg" in ultimi_kg.lower():
-                        kg_finale = f"{sep}{ultimi_kg}"
-                    else:
-                        kg_finale = f"{sep}{ultimi_kg} kg"
+                    # Fallback di sicurezza per i vecchissimi allenamenti salvati solo con i numeri
+                    if ha_minuti and carico_vuoto: kg_finale = f"{sep}{ultimi_kg}'"
+                    elif ha_secondi and carico_vuoto: kg_finale = f"{sep}{ultimi_kg}''"
+                    elif carico_vuoto: kg_finale = f"{sep}{ultimi_kg}"
+                    else: kg_finale = f"{sep}{ultimi_kg} kg"
                 
         # SE NON C'È STORICO, USA IL DATO DEL COACH
         if kg_finale == "":
@@ -846,23 +846,56 @@ with tab_workout:
                 st.divider()
                 if st.button("💾 Consegna Intero Allenamento", type="primary", use_container_width=True):
                     righe_da_inserire = []
+                    
                     if len(dati_storico) == 0:
-                        righe_da_inserire.append(["Data", "Esercizio", "Serie", "Ripetizioni", "Kg Sollevati / Secondi", "Tonnellaggio", "RPE", "Feedback"])
+                        righe_da_inserire.append(["Data", "Esercizio", "Serie", "Ripetizioni", "Kg Sollevati / Secondi / Minuti", "Tonnellaggio", "RPE", "Feedback"])
+                    
+                    primo_inserimento = True
+                    
                     for es_obj in esercizi_assegnati:
                         es = es_obj["nome"]
+                        rip_coach = es_obj["rip_coach"]
+                        carico_coach = es_obj["carico_coach"]
+                        
+                        carico_vuoto = str(carico_coach).strip() in ["", "N/D", "nan", "-1", "?"]
+                        ha_minuti = "'" in str(rip_coach)
+                        ha_secondi = '"' in str(rip_coach)
+                        
+                        # Determina quale suffisso attaccare in base alle tue note
+                        if not carico_vuoto:
+                            suffisso = " kg"
+                        else:
+                            if ha_minuti: suffisso = "'"
+                            elif ha_secondi: suffisso = "''"
+                            else: suffisso = " kg"
+                            
                         for i in range(st.session_state.contatore_serie[es]):
                             rip = st.session_state.get(f"rip_{es}_{i}", 0)
                             kg = st.session_state.get(f"kg_{es}_{i}", 0.0)
                             
-                            # Pulisce i decimali superflui se i secondi/kg sono un numero intero (es. 30.0 -> 30)
-                            kg_str = str(int(kg)) if kg == int(kg) else str(kg).replace(".", ",")
+                            kg_base = str(int(kg)) if kg == int(kg) else str(kg).replace(".", ",")
+                            
+                            # Applica visivamente il suffisso solo se ha compilato qualcosa di maggiore a 0
+                            if kg > 0:
+                                kg_str = f"{kg_base}{suffisso}"
+                            else:
+                                kg_str = "0"
+                            
                             tonnellaggio_str = str(int(rip * kg)) if (rip * kg) == int(rip * kg) else str(rip * kg).replace(".", ",")
                             
-                            # Salva la serie se c'è ALMENO una ripetizione, oppure se ci sono dei secondi/kg (es. per il Plank)
                             if rip > 0 or kg > 0:
+                                
+                                if primo_inserimento:
+                                    val_rpe = str(rpe_globale).replace(".", ",")
+                                    val_feedback = feedback_globale
+                                    primo_inserimento = False
+                                else:
+                                    val_rpe = ""
+                                    val_feedback = ""
+                                
                                 righe_da_inserire.append([
                                     str(data_sessione), es, i+1, rip, kg_str, 
-                                    tonnellaggio_str, str(rpe_globale).replace(".", ","), feedback_globale
+                                    tonnellaggio_str, val_rpe, val_feedback
                                 ])
                     
                     if len(righe_da_inserire) > 0:
