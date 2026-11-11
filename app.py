@@ -43,11 +43,13 @@ st.markdown("""
             border-radius: 8px !important;
         }
         
-        /* Testo BIANCO dentro gli input e le tendine */
-        input, select, textarea, div[data-baseweb="select"] span {
-            background-color: transparent !important;
+        /* Testo BIANCO dentro gli input, textarea e valore SELEZIONATO della tendina */
+        input, select, textarea, 
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] div {
             color: #ffffff !important; 
             font-weight: 600 !important;
+            background-color: transparent !important;
         }
 
         /* Colore della lista quando ci clicchi sopra per aprirla */
@@ -57,6 +59,7 @@ st.markdown("""
         }
         ul[role="listbox"] li, ul[data-baseweb="menu"] li {
             color: #ffffff !important;
+            background-color: transparent !important;
         }
         
         /* Testo scuro dentro gli input per massima leggibilità */
