@@ -598,82 +598,82 @@ with tab_dash:
             st.altair_chart(heatmap, use_container_width=True)
             st.divider()
 
-            col_graf_1, col_graf_2 = st.columns(2)
-            with col_graf_1:
-                st.write("**Fatica Percepita (RPE)**")
-                if col_rpe and df_stat["RPE_num"].sum() > 0:
-                    df_rpe_trend = df_stat.groupby("Data_dt")["RPE_num"].mean().reset_index()
-                    grafico_rpe = alt.Chart(df_rpe_trend).mark_line(
-                        color="#e63946", strokeWidth=3, point=alt.OverlayMarkDef(color="#ffffff", size=60, filled=True)
-                    ).encode(
-                        x=alt.X("Data_dt:T", title="", axis=alt.Axis(labelAngle=-45, format="%d %b")),
-                        y=alt.Y("RPE_num:Q", title="RPE (0-10)", scale=alt.Scale(domain=[0, 10])),
-                        tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b"), alt.Tooltip("RPE_num:Q", title="RPE", format=".1f")]
-                    ).properties(height=250).configure_view(strokeWidth=0).configure_axis(
-                        gridColor="rgba(255,255,255,0.1)", domain=False, labelColor="rgba(255,255,255,0.7)"
-                    ).configure(background='transparent')
-                    st.altair_chart(grafico_rpe, use_container_width=True)
-                else:
-                    st.info("Nessun dato RPE registrato.")
+            # --- RIGA 1: GRAFICO RPE A LARGHEZZA INTERA ---
+            st.write("**Fatica Percepita (RPE)**")
+            if col_rpe and df_stat["RPE_num"].sum() > 0:
+                df_rpe_trend = df_stat.groupby("Data_dt")["RPE_num"].mean().reset_index()
+                grafico_rpe = alt.Chart(df_rpe_trend).mark_line(
+                    color="#e63946", strokeWidth=3, point=alt.OverlayMarkDef(color="#ffffff", size=60, filled=True)
+                ).encode(
+                    x=alt.X("Data_dt:T", title="", axis=alt.Axis(labelAngle=-45, format="%d %b")),
+                    y=alt.Y("RPE_num:Q", title="RPE (0-10)", scale=alt.Scale(domain=[0, 10])),
+                    tooltip=[alt.Tooltip("Data_dt:T", title="Data", format="%d %b"), alt.Tooltip("RPE_num:Q", title="RPE", format=".1f")]
+                ).properties(height=250).configure_view(strokeWidth=0).configure_axis(
+                    gridColor="rgba(255,255,255,0.1)", domain=False, labelColor="rgba(255,255,255,0.7)"
+                ).configure(background='transparent')
+                st.altair_chart(grafico_rpe, use_container_width=True)
+            else:
+                st.info("Nessun dato RPE registrato.")
 
-            with col_graf_2:
-                st.write("**Distribuzione Volume (Serie per Gruppo)**")
-                mappa_muscoli = {
-                    "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegament": "Petto", "pectoral": "Petto", "push up": "Petto", "cavi": "Petto",
-                    "lat": "Schiena", "trazion": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull down": "Schiena", "pull-down": "Schiena", "pullup": "Schiena", "pull up": "Schiena", "row": "Schiena", "dorso": "Schiena", "schiena": "Schiena", "t-bar": "Schiena", "chin up": "Schiena", "chin-up": "Schiena",
-                    "squat": "Gambe", "pressa": "Gambe", "leg press": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affond": "Gambe", "lunge": "Gambe", "polpacc": "Gambe", "stacco": "Gambe", "deadlift": "Gambe", "calf": "Gambe", "glute": "Gambe", "hip thrust": "Gambe", "bulgarian": "Gambe", "abductor": "Gambe", "adductor": "Gambe", "abd": "Gambe",
-                    "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoid": "Spalle", "face pull": "Spalle", "tirate": "Spalle", "arnold": "Spalle",
-                    "curl": "Bicipiti", "bicipit": "Bicipiti", "bicep": "Bicipiti", "hammer": "Bicipiti",
-                    "french": "Tricipiti", "tricipit": "Tricipiti", "pushdown": "Tricipiti", "push down": "Tricipiti", "kickback": "Tricipiti", "tricep": "Tricipiti", "extension": "Tricipiti", "skullcrusher": "Tricipiti",
-                    "crunch": "Addome", "plank": "Addome", "addominal": "Addome", "sit up": "Addome", "sit-up": "Addome", "core": "Addome", "russian twist": "Addome", "leg raise": "Addome", "ab roller": "Addome", "deadbug": "Addome", "side bend": "Addome",
-                    "tapis roulant": "Cardio", "camminata": "Cardio", "corsa": "Cardio", "run": "Cardio", "bike": "Cardio", "cyclette": "Cardio", "vogatore": "Cardio", "rower": "Cardio", "ellittica": "Cardio", "stairmaster": "Cardio", "jump": "Cardio", "salto": "Cardio", "corda": "Cardio", "burpee": "Cardio", "jumping jack": "Cardio", "skipping": "Cardio"
-                }
-                
-                def assegna_muscolo(es):
-                    es_lower = str(es).lower()
-                    for chiave, muscolo in mappa_muscoli.items():
-                        if chiave in es_lower: return muscolo
-                    return "Altro"
+            st.divider()
 
-                df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
-                df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie Totali")
-                df_muscoli = df_muscoli[df_muscoli["Serie Totali"] > 0]
+            # --- RIGA 2: GRAFICO VOLUME A LARGHEZZA INTERA CON LEGENDA INCOLONNATA ---
+            st.write("**Distribuzione Volume (Serie per Gruppo)**")
+            mappa_muscoli = {
+                "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegament": "Petto", "pectoral": "Petto", "push up": "Petto", "cavi": "Petto",
+                "lat": "Schiena", "trazion": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull down": "Schiena", "pull-down": "Schiena", "pullup": "Schiena", "pull up": "Schiena", "row": "Schiena", "dorso": "Schiena", "schiena": "Schiena", "t-bar": "Schiena", "chin up": "Schiena", "chin-up": "Schiena",
+                "squat": "Gambe", "pressa": "Gambe", "leg press": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affond": "Gambe", "lunge": "Gambe", "polpacc": "Gambe", "stacco": "Gambe", "deadlift": "Gambe", "calf": "Gambe", "glute": "Gambe", "hip thrust": "Gambe", "bulgarian": "Gambe", "abductor": "Gambe", "adductor": "Gambe", "abd": "Gambe",
+                "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoid": "Spalle", "face pull": "Spalle", "tirate": "Spalle", "arnold": "Spalle",
+                "curl": "Bicipiti", "bicipit": "Bicipiti", "bicep": "Bicipiti", "hammer": "Bicipiti",
+                "french": "Tricipiti", "tricipit": "Tricipiti", "pushdown": "Tricipiti", "push down": "Tricipiti", "kickback": "Tricipiti", "tricep": "Tricipiti", "extension": "Tricipiti", "skullcrusher": "Tricipiti",
+                "crunch": "Addome", "plank": "Addome", "addominal": "Addome", "sit up": "Addome", "sit-up": "Addome", "core": "Addome", "russian twist": "Addome", "leg raise": "Addome", "ab roller": "Addome", "deadbug": "Addome", "side bend": "Addome",
+                "tapis roulant": "Cardio", "camminata": "Cardio", "corsa": "Cardio", "run": "Cardio", "bike": "Cardio", "cyclette": "Cardio", "vogatore": "Cardio", "rower": "Cardio", "ellittica": "Cardio", "stairmaster": "Cardio", "jump": "Cardio", "salto": "Cardio", "corda": "Cardio", "burpee": "Cardio", "jumping jack": "Cardio", "skipping": "Cardio"
+            }
+            
+            def assegna_muscolo(es):
+                es_lower = str(es).lower()
+                for chiave, muscolo in mappa_muscoli.items():
+                    if chiave in es_lower: return muscolo
+                return "Altro"
+
+            df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
+            df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie Totali")
+            df_muscoli = df_muscoli[df_muscoli["Serie Totali"] > 0]
+            
+            if not df_muscoli.empty:
+                totale_serie = df_muscoli["Serie Totali"].sum()
+                df_muscoli["Percentuale"] = (df_muscoli["Serie Totali"] / totale_serie) * 100
+                df_muscoli["Label"] = df_muscoli["Percentuale"].apply(lambda x: f"{x:.0f}%" if x >= 3 else "")
                 
-                if not df_muscoli.empty:
-                    totale_serie = df_muscoli["Serie Totali"].sum()
-                    df_muscoli["Percentuale"] = (df_muscoli["Serie Totali"] / totale_serie) * 100
-                    df_muscoli["Label"] = df_muscoli["Percentuale"].apply(lambda x: f"{x:.0f}%" if x >= 3 else "")
-                    
-                    color_scale = alt.Scale(
-                        domain=["Petto", "Schiena", "Gambe", "Spalle", "Bicipiti", "Tricipiti", "Addome", "Cardio", "Altro"],
-                        range=["#e63946", "#2997ff", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f43f5e", "#64748b"]
-                    )
-                    
-                    base_chart = alt.Chart(df_muscoli).encode(
-                        theta=alt.Theta(field="Serie Totali", type="quantitative", stack=True),
-                        color=alt.Color(
-                            field="Gruppo", 
-                            type="nominal", 
-                            scale=color_scale, 
-                            legend=alt.Legend(
-                                title="", 
-                                labelColor="rgba(255,255,255,0.7)",
-                                orient="bottom", # Sposta la legenda sotto il grafico
-                                columns=3,       # Divide la lista in 3 colonne
-                                labelFontSize=12
-                            )
+                color_scale = alt.Scale(
+                    domain=["Petto", "Schiena", "Gambe", "Spalle", "Bicipiti", "Tricipiti", "Addome", "Cardio", "Altro"],
+                    range=["#e63946", "#2997ff", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f43f5e", "#64748b"]
+                )
+                
+                base_chart = alt.Chart(df_muscoli).encode(
+                    theta=alt.Theta(field="Serie Totali", type="quantitative", stack=True),
+                    color=alt.Color(
+                        field="Gruppo", 
+                        type="nominal", 
+                        scale=color_scale, 
+                        legend=alt.Legend(
+                            title="", 
+                            labelColor="rgba(255,255,255,0.7)",
+                            orient="right", # Rimette la legenda a destra
+                            labelFontSize=13  # Ingrandisce leggermente i nomi per massima leggibilità
                         )
                     )
-                    ciambella = base_chart.mark_arc(innerRadius=45, outerRadius=90, stroke="#050A18", strokeWidth=2).encode(
-                        tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Serie Totali:Q", title="Serie Eseguite")]
-                    )
-                    testo = base_chart.mark_text(radius=115, fill="white", size=11, fontWeight="bold").encode(text="Label:N")
-                    
-                    # Aumentato l'height a 320 per dare respiro alla nuova legenda sotto
-                    grafico_finale = (ciambella + testo).properties(height=320).configure_view(strokeWidth=0).configure(background='transparent')
-                    st.altair_chart(grafico_finale, use_container_width=True)
-                else:
-                    st.info("Nessun volume registrato.")
+                )
+                ciambella = base_chart.mark_arc(innerRadius=50, outerRadius=100, stroke="#050A18", strokeWidth=2).encode(
+                    tooltip=[alt.Tooltip("Gruppo:N"), alt.Tooltip("Serie Totali:Q", title="Serie Eseguite")]
+                )
+                testo = base_chart.mark_text(radius=125, fill="white", size=12, fontWeight="bold").encode(text="Label:N")
+                
+                # Altezza ripristinata a 300 per centrare perfettamente grafico e legenda in verticale
+                grafico_finale = (ciambella + testo).properties(height=300).configure_view(strokeWidth=0).configure(background='transparent')
+                st.altair_chart(grafico_finale, use_container_width=True)
+            else:
+                st.info("Nessun volume registrato.")
 
     else:
         # --- DASHBOARD ENDURANCE ---
