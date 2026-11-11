@@ -618,24 +618,14 @@ with tab_dash:
 
             with col_graf_2:
                 st.write("**Distribuzione Volume (Serie per Gruppo)**")
-                
-                # --- DIZIONARIO ESPANSO E OTTIMIZZATO ---
                 mappa_muscoli = {
-                    # PETTO
                     "panca": "Petto", "spinte": "Petto", "croci": "Petto", "chest": "Petto", "dip": "Petto", "piegament": "Petto", "pectoral": "Petto", "push up": "Petto", "cavi": "Petto",
-                    # SCHIENA
                     "lat": "Schiena", "trazion": "Schiena", "rematore": "Schiena", "pulley": "Schiena", "pull down": "Schiena", "pull-down": "Schiena", "pullup": "Schiena", "pull up": "Schiena", "row": "Schiena", "dorso": "Schiena", "schiena": "Schiena", "t-bar": "Schiena", "chin up": "Schiena", "chin-up": "Schiena",
-                    # GAMBE & GLUTEI
                     "squat": "Gambe", "pressa": "Gambe", "leg press": "Gambe", "leg extension": "Gambe", "leg curl": "Gambe", "affond": "Gambe", "lunge": "Gambe", "polpacc": "Gambe", "stacco": "Gambe", "deadlift": "Gambe", "calf": "Gambe", "glute": "Gambe", "hip thrust": "Gambe", "bulgarian": "Gambe", "abductor": "Gambe", "adductor": "Gambe", "abd": "Gambe",
-                    # SPALLE
                     "military": "Spalle", "lento": "Spalle", "alzate": "Spalle", "shoulder": "Spalle", "deltoid": "Spalle", "face pull": "Spalle", "tirate": "Spalle", "arnold": "Spalle",
-                    # BICIPITI
                     "curl": "Bicipiti", "bicipit": "Bicipiti", "bicep": "Bicipiti", "hammer": "Bicipiti",
-                    # TRICIPITI
                     "french": "Tricipiti", "tricipit": "Tricipiti", "pushdown": "Tricipiti", "push down": "Tricipiti", "kickback": "Tricipiti", "tricep": "Tricipiti", "extension": "Tricipiti", "skullcrusher": "Tricipiti",
-                    # ADDOME E CORE
                     "crunch": "Addome", "plank": "Addome", "addominal": "Addome", "sit up": "Addome", "sit-up": "Addome", "core": "Addome", "russian twist": "Addome", "leg raise": "Addome", "ab roller": "Addome", "deadbug": "Addome", "side bend": "Addome",
-                    # CARDIO & METABOLICO
                     "tapis roulant": "Cardio", "camminata": "Cardio", "corsa": "Cardio", "run": "Cardio", "bike": "Cardio", "cyclette": "Cardio", "vogatore": "Cardio", "rower": "Cardio", "ellittica": "Cardio", "stairmaster": "Cardio", "jump": "Cardio", "salto": "Cardio", "corda": "Cardio", "burpee": "Cardio", "jumping jack": "Cardio", "skipping": "Cardio"
                 }
                 
@@ -646,9 +636,6 @@ with tab_dash:
                     return "Altro"
 
                 df_stat["Gruppo"] = df_stat["Esercizio"].apply(assegna_muscolo)
-                
-                # --- CALCOLO PER VOLUME (NUMERO DI SERIE VALIDE) INVECE CHE TONNELLAGGIO ---
-                # Ogni riga salvata su Sheets equivale a 1 serie completata dall'atleta
                 df_muscoli = df_stat.groupby("Gruppo").size().reset_index(name="Serie Totali")
                 df_muscoli = df_muscoli[df_muscoli["Serie Totali"] > 0]
                 
@@ -657,7 +644,6 @@ with tab_dash:
                     df_muscoli["Percentuale"] = (df_muscoli["Serie Totali"] / totale_serie) * 100
                     df_muscoli["Label"] = df_muscoli["Percentuale"].apply(lambda x: f"{x:.0f}%" if x >= 3 else "")
                     
-                    # Colori personalizzati per distinguere i gruppi a colpo d'occhio
                     color_scale = alt.Scale(
                         domain=["Petto", "Schiena", "Gambe", "Spalle", "Bicipiti", "Tricipiti", "Addome", "Cardio", "Altro"],
                         range=["#e63946", "#2997ff", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f43f5e", "#64748b"]
@@ -681,7 +667,6 @@ with tab_dash:
         st.header("Dashboard Analitica 🏃‍♂️")
         df_stat = df_storico.copy() if not df_storico.empty else pd.DataFrame()
         
-        # Per endurance il diario ha 3 colonne: [Data, RPE, Feedback]
         if not df_stat.empty and len(df_stat.columns) >= 3:
             col_data = next((col for col in df_stat.columns if "data" in str(col).lower()), df_stat.columns[0])
             df_stat["Data_dt"] = pd.to_datetime(df_stat[col_data], errors="coerce", dayfirst=True)
@@ -716,7 +701,6 @@ with tab_dash:
             ).configure(background='transparent')
             
             st.altair_chart(grafico_rpe, use_container_width=True)
-
 
 # ==========================================
 # SEZIONE 2: SCHEDA DI ALLENAMENTO
