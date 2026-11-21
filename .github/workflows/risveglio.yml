@@ -2,50 +2,139 @@ name: Risveglio Automatico Streamlit
 
 on:
   schedule:
-    - cron: "0 */12 * * *" # Si attiva ogni 12 ore
-  workflow_dispatch: # Ti permette di attivarlo anche a mano dal pannello GitHub
+    - cron: "17 * * * *" # Si attiva ogni ora (al minuto 17)
+  workflow_dispatch:
+    inputs:
+      modalita_test:
+        description: "Simula app ibernata per testare il click sul bottone"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
+
       - name: Installa Playwright (Browser Reale)
         run: |
           pip install playwright
           playwright install chromium
-          
-      - name: Visita l'app e clicca il bottone
-        run: |
-          python -c "
-          from playwright.sync_api import sync_playwright
-          import time
 
-          # Inserisci qui il link della tua app Streamlit
-          URL = 'https://appcoaching-g38b85ppjr7kvgu84yehzt.streamlit.app/'
+      - name: Visita l'app e garantisci il risveglio
+        env:
+          TEST_MODE: ${{ inputs.modalita_test || 'false' }}
+        run: |
+          python - << 'EOF'
+          import os
+          import sys
+          import time
+          from playwright.sync_api import sync_playwright
+
+          URL = "https://appcoaching-g38b85ppjr7kvgu84yehzt.streamlit.app/"
+          TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
+
+          FAKE_HIBERNATION_HTML = """
+          <!DOCTYPE html>
+          <html>
+            <body style="background:#0e1117;color:white;font-family:sans-serif;text-align:center;padding-top:120px;">
+              <h1 id="status">Zzzz... App ibernata (SIMULAZIONE)</h1>
+              <button
+                onclick="document.getElementById('status').innerText='CLICK RIUSCITO!'; this.style.display='none'; document.body.innerHTML += '<div data-testid=stAppViewContainer>App Caricata</div>';"
+                style="padding:14px 24px;font-size:16px;background:#1c83e1;color:white;border:none;border-radius:8px;cursor:pointer;"
+              >
+                Yes, get this app back up!
+              </button>
+            </body>
+          </html>
+          """
+
+          def app_caricata(page) -> bool:
+              """Verifica che l'interfaccia reale di Streamlit sia montata (fuori o dentro l'iframe)."""
+              try:
+                  if page.locator("[data-testid='stAppViewContainer']").is_visible():
+                      return True
+                  iframe = page.frame_locator("iframe[title='streamlitApp']")
+                  if iframe.locator("[data-testid='stAppViewContainer']").is_visible():
+                      return True
+              except Exception:
+                  pass
+              return False
 
           with sync_playwright() as p:
-              print(f'Apertura browser e navigazione su {URL}...')
               browser = p.chromium.launch(headless=True)
-              page = browser.new_page()
-              page.goto(URL, wait_until='networkidle')
-              time.sleep(5)
-              
-              # Cerca e clicca il bottone di risveglio se l'app è ibernata
-              try:
-                  bottone = page.get_by_role('button', name='Yes, get this app back up!')
-                  if bottone.is_visible(timeout=3000):
-                      print('App ibernata! Clicco il bottone di risveglio...')
+              page = browser.new_page(viewport={"width": 1280, "height": 720})
+
+              if TEST_MODE:
+                  print("MODALITA TEST ATTIVA")
+                  page.set_content(FAKE_HIBERNATION_HTML)
+              else:
+                  print(f"Navigazione su {URL}...")
+                  page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+                  time.sleep(10)
+
+              page.screenshot(path="1_prima.png")
+
+              bottone = page.get_by_role("button", name="Yes, get this app back up!")
+              attiva = False
+
+              # Fino a 2 cicli completi nello stesso run (max ~3 minuti totali)
+              for tentativo in range(1, 3):
+                  if app_caricata(page):
+                      print("App confermata attiva nel DOM.")
+                      attiva = True
+                      break
+
+                  if bottone.is_visible():
+                      print(f"[Tentativo {tentativo}/2] Bottone di ibernazione trovato. Attendo 2s e clicco...")
+                      time.sleep(2)
                       bottone.click()
-                      time.sleep(10) # Aspetta che l'app si ricarichi
                   else:
-                      print('App già sveglia e funzionante.')
-              except Exception as e:
-                  print('Nessun bottone trovato, traffico umano registrato.')
-                  
+                      print(f"[Tentativo {tentativo}/2] Bottone non visibile, ma app non ancora pronta. Attendo il boot...")
+
+                  # Controlla ogni 10 secondi (per 90s) se l'app ha finito di avviarsi
+                  attesa_max = 10 if TEST_MODE else 90
+                  for sec in range(0, attesa_max, 10):
+                      time.sleep(2 if TEST_MODE else 10)
+                      if app_caricata(page):
+                          print(f"App risvegliata e confermata attiva dopo ~{sec + 10}s!")
+                          attiva = True
+                          break
+                      # Se durante l'attesa il bottone è ancora lì, il click è andato a vuoto: esce e riprova
+                      if bottone.is_visible():
+                          print("Il bottone è ancora visibile dopo il click, riprovo...")
+                          break
+
+                  if attiva:
+                      break
+
+                  if not TEST_MODE and tentativo < 2:
+                      print("App non ancora attiva: ricarico la pagina per il secondo tentativo...")
+                      page.reload(wait_until="domcontentloaded", timeout=60000)
+                      time.sleep(8)
+
+              if attiva and not TEST_MODE:
+                  # Registra attività reale sulla sessione WebSocket prima di chiudere
+                  page.mouse.move(640, 360)
+                  page.mouse.wheel(0, 200)
+                  time.sleep(6)
+
+              page.screenshot(path="2_dopo.png")
               browser.close()
-          "
+
+              if not attiva:
+                  print("ERRORE: l'app non si è risvegliata entro il tempo limite.")
+                  sys.exit(1)
+          EOF
+
+      - name: Salva screenshot di verifica
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-verifica
+          path: "*.png"
+          retention-days: 3
