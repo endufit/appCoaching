@@ -25,16 +25,32 @@ controller = CookieController()
 st.markdown(
     """
     <style>
-        /* Sfondo principale e Topbar */
-        .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        /* Forza dark mode nativo su iOS/Android ed elimina qualsiasi fascia bianca sotto/sopra la tastiera */
+        :root, html, body, #root,
+        .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        section.main,
+        [data-testid="stHeader"] {
+            color-scheme: dark !important;
             background-color: #050A18 !important;
         }
 
-        /* Spazio extra in fondo per permettere allo scroll di portare ogni campo sopra la tastiera */
+        /* Nasconde il contenitore dell'iframe JS per evitare spazi bianchi extra */
+        iframe[height="0"],
+        div[data-testid="stElementContainer"]:has(iframe[height="0"]) {
+            display: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* Spazio extra in fondo per poter traslare in alto anche l'ultimo esercizio/campo */
         section[data-testid="stMain"] .block-container,
         div[data-testid="stAppViewContainer"] .block-container,
         .main .block-container {
-            padding-bottom: 60vh !important;
+            padding-bottom: 80vh !important;
         }
 
         /* Colore testi globali */
@@ -82,8 +98,6 @@ st.markdown(
             font-size: 18px !important;
             font-weight: 700 !important;
             background-color: transparent !important;
-            scroll-margin-top: 100px !important;
-            scroll-margin-bottom: 360px !important;
         }
 
         /* PULSANTI - / + DEL NUMBER INPUT BEN VISIBILI */
@@ -233,7 +247,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- SCRIPT PER TRASLARE IL CAMPO SOPRA LA TASTIERA SU MOBILE ---
+# --- SCRIPT PER TRASLARE IL CAMPO NELLA PARTE ALTA SOPRA LA TASTIERA ---
 components.html(
     """
     <script>
@@ -241,68 +255,99 @@ components.html(
         const parentWin = window.parent;
         const parentDoc = parentWin.document;
 
-        if (parentWin.__endufitKeyboardFixInstalled) return;
-        parentWin.__endufitKeyboardFixInstalled = true;
+        if (parentWin.__endufitKeyboardScrollV2) return;
+        parentWin.__endufitKeyboardScrollV2 = true;
 
-        function getScrollableParent(el) {
+        function getAncestors(el) {
+            const list = [];
             let curr = el ? el.parentElement : null;
-            while (curr && curr !== parentDoc.body) {
-                const style = parentWin.getComputedStyle(curr);
-                const overflowY = style.overflowY;
-                if ((overflowY === "auto" || overflowY === "scroll") && curr.scrollHeight > curr.clientHeight) {
-                    return curr;
-                }
+            while (curr) {
+                list.push(curr);
                 curr = curr.parentElement;
             }
-            return (
-                parentDoc.querySelector('section[data-testid="stMain"]') ||
-                parentDoc.querySelector('div[data-testid="stAppViewContainer"]') ||
-                parentDoc.documentElement
-            );
+            return list;
         }
 
-        function portaCampoSopraTastiera(el) {
+        function portaCampoInAlto(el) {
             if (!el) return;
             const tag = el.tagName;
             if (tag !== "INPUT" && tag !== "TEXTAREA") return;
 
+            // Prende l'intero widget (etichetta + campo input) così si vede sia il nome che il numero
+            const widgetBox =
+                el.closest('[data-testid="stNumberInput"]') ||
+                el.closest('[data-testid="stTextArea"]') ||
+                el.closest('[data-baseweb="input"]') ||
+                el;
+
             const vv = parentWin.visualViewport;
-            const vvHeight = vv ? vv.height : parentWin.innerHeight;
             const vvTop = vv ? vv.offsetTop : 0;
+            const rect = widgetBox.getBoundingClientRect();
 
-            const rect = el.getBoundingClientRect();
-            // Posiziona il campo nel quarto superiore dello spazio visibile sopra la tastiera
-            const desiredTop = vvTop + Math.max(95, vvHeight * 0.24);
-            const maxVisibleBottom = vvTop + vvHeight * 0.42;
+            // Porta l'etichetta + input a 75px dal bordo superiore dello schermo (ben sopra qualsiasi tastiera)
+            const targetTop = vvTop + 75;
+            const delta = rect.top - targetTop;
 
-            if (rect.top > maxVisibleBottom || rect.top < vvTop + 60) {
-                const delta = rect.top - desiredTop;
-                const scroller = getScrollableParent(el);
-                if (scroller && typeof scroller.scrollBy === "function") {
-                    scroller.scrollBy({ top: delta, behavior: "smooth" });
-                } else {
-                    parentWin.scrollBy({ top: delta, behavior: "smooth" });
+            if (Math.abs(delta) < 4) return;
+
+            let remaining = delta;
+            const candidates = [
+                ...getAncestors(widgetBox),
+                parentDoc.querySelector('section[data-testid="stMain"]'),
+                parentDoc.querySelector('[data-testid="stAppViewContainer"]'),
+                parentDoc.querySelector('.stApp'),
+                parentDoc.scrollingElement || parentDoc.documentElement,
+                parentDoc.body
+            ];
+
+            const seen = new Set();
+            for (const scroller of candidates) {
+                if (!scroller || seen.has(scroller)) continue;
+                seen.add(scroller);
+
+                const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+                if (maxScroll > 5) {
+                    const before = scroller.scrollTop;
+                    scroller.scrollTop = Math.max(0, Math.min(maxScroll, before + remaining));
+                    const moved = scroller.scrollTop - before;
+                    remaining -= moved;
+                    if (Math.abs(remaining) < 2) break;
                 }
             }
         }
 
-        parentDoc.addEventListener("focusin", function(e) {
-            const target = e.target;
+        function schedulaSpostamento(target) {
             if (!target || (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA")) return;
+            // Ripete lo spostamento durante e dopo l'animazione della tastiera iOS/Android
+            [50, 180, 350, 550].forEach(delay => {
+                setTimeout(() => {
+                    if (parentDoc.activeElement === target) {
+                        portaCampoInAlto(target);
+                    }
+                }, delay);
+            });
+        }
 
-            // Esegue a più intervalli per seguire l'animazione di apertura della tastiera iOS/Android
-            setTimeout(() => portaCampoSopraTastiera(target), 80);
-            setTimeout(() => portaCampoSopraTastiera(target), 260);
-            setTimeout(() => portaCampoSopraTastiera(target), 480);
+        parentDoc.addEventListener("focusin", function(e) {
+            schedulaSpostamento(e.target);
+        }, true);
+
+        parentDoc.addEventListener("click", function(e) {
+            const inp = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
+                ? e.target
+                : (e.target && e.target.closest ? e.target.closest("input, textarea") : null);
+            if (inp) schedulaSpostamento(inp);
         }, true);
 
         if (parentWin.visualViewport) {
-            parentWin.visualViewport.addEventListener("resize", function() {
+            const onViewportChange = () => {
                 const active = parentDoc.activeElement;
                 if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
-                    setTimeout(() => portaCampoSopraTastiera(active), 60);
+                    portaCampoInAlto(active);
                 }
-            });
+            };
+            parentWin.visualViewport.addEventListener("resize", onViewportChange);
+            parentWin.visualViewport.addEventListener("scroll", onViewportChange);
         }
     })();
     </script>
@@ -1122,7 +1167,6 @@ def pulsante_form(label, key, tipo="secondary", full_width=True):
         return st.form_submit_button(
             label, key=key, type=tipo, use_container_width=full_width
         )
-    # Fallback con caratteri invisibili univoci per versioni molto vecchie
     suffix = "\u200b" * (abs(hash(key)) % 40 + 1)
     return st.form_submit_button(
         f"{label}{suffix}", type=tipo, use_container_width=full_width
@@ -1171,8 +1215,6 @@ def render_sezione_allenamento():
         st.divider()
         st.write("### Scheda")
 
-        # TUTTI I CAMPI DENTRO st.form:
-        # Nessun refresh mentre digiti; i dati vengono inviati UNA SOLA VOLTA al click finale.
         with st.form(key=f"form_fitness_{giorno_scelto}", clear_on_submit=False):
             esercizio_da_aggiungere = None
             esercizio_da_rimuovere = None
@@ -1185,7 +1227,6 @@ def render_sezione_allenamento():
                 recupero_coach = es_obj["recupero_coach"]
                 note_coach = es_obj.get("note_coach", "")
 
-                # Numero di serie di default basato sul valore stabilito dal coach
                 if es not in st.session_state.contatore_serie:
                     numeri = re.findall(r"\d+", str(serie_coach))
                     st.session_state.contatore_serie[es] = (
@@ -1268,7 +1309,6 @@ def render_sezione_allenamento():
                                 key=key_kg,
                             )
 
-                    # --- PULSANTI AGGIUNGI/RIMUOVI SERIE ESATTAMENTE COME PRIMA ---
                     btn_col1, btn_col2 = st.columns(2)
                     with btn_col1:
                         if pulsante_form(
@@ -1309,7 +1349,6 @@ def render_sezione_allenamento():
                 full_width=True,
             )
 
-        # Gestione aggiunta serie (copia i valori dell'ultima serie e mantiene aperto l'expander)
         if esercizio_da_aggiungere is not None:
             es = esercizio_da_aggiungere
             idx_nuovo = st.session_state.contatore_serie[es]
@@ -1327,7 +1366,6 @@ def render_sezione_allenamento():
             st.session_state.es_aperto = es
             st.rerun(scope="fragment")
 
-        # Gestione rimozione serie
         if esercizio_da_rimuovere is not None:
             es = esercizio_da_rimuovere
             if st.session_state.contatore_serie[es] > 1:
@@ -1335,7 +1373,6 @@ def render_sezione_allenamento():
                 st.session_state.es_aperto = es
                 st.rerun(scope="fragment")
 
-        # Invio unico finale al coach
         if inviato:
             righe_da_inserire = []
 
