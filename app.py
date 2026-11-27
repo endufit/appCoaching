@@ -1,5 +1,7 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import datetime
+import inspect
 import re
 import gspread
 import pandas as pd
@@ -16,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# 2. INIZIALIZZA IL CONTROLLER DEI COOKIE SOLO SE NECESSARIO
+# 2. INIZIALIZZA IL CONTROLLER DEI COOKIE
 controller = CookieController()
 
 # --- TEMA ENDUFIT: SFONDO SCURO, GLASSMORPHISM, BLU E ROSSO ---
@@ -26,6 +28,13 @@ st.markdown(
         /* Sfondo principale e Topbar */
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #050A18 !important;
+        }
+
+        /* Spazio extra in fondo per permettere allo scroll di portare ogni campo sopra la tastiera */
+        section[data-testid="stMain"] .block-container,
+        div[data-testid="stAppViewContainer"] .block-container,
+        .main .block-container {
+            padding-bottom: 60vh !important;
         }
 
         /* Colore testi globali */
@@ -70,11 +79,11 @@ st.markdown(
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
             caret-color: #2997ff !important;
-            font-size: 16px !important;
+            font-size: 18px !important;
             font-weight: 700 !important;
             background-color: transparent !important;
-            scroll-margin-top: 120px !important;
-            scroll-margin-bottom: 240px !important;
+            scroll-margin-top: 100px !important;
+            scroll-margin-bottom: 360px !important;
         }
 
         /* PULSANTI - / + DEL NUMBER INPUT BEN VISIBILI */
@@ -141,7 +150,8 @@ st.markdown(
 
         /* Pulsante Primario */
         div.stButton > button[kind="primary"],
-        div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
+        div[data-testid="stFormSubmitButton"] > button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] > button[kind="primaryFormSubmit"] {
             background: linear-gradient(to right, #e63946, #b01e28) !important;
             color: white !important;
             border: none !important;
@@ -219,39 +229,86 @@ st.markdown(
         📲 <b style="color: white;">Salva l'app sul telefono!</b><br><br>
         Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
     </div>
-
-    <!-- SCRIPT PER ICONA PWA -->
-    <script>
-        const iconUrl = "INCOLLA_QUI_LA_TUA_STRINGA_BASE64_QUADRATA";
-        document.querySelectorAll('link[rel="shortcut icon"], link[rel="icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
-
-        let appleTouchIcon = document.createElement('link');
-        appleTouchIcon.rel = 'apple-touch-icon';
-        appleTouchIcon.href = iconUrl;
-        document.head.appendChild(appleTouchIcon);
-
-        let favicon = document.createElement('link');
-        favicon.rel = 'icon';
-        favicon.type = 'image/png';
-        favicon.href = iconUrl;
-        document.head.appendChild(favicon);
-
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        if (manifestLink) {
-            fetch(manifestLink.href)
-                .then(r => r.json())
-                .then(manifest => {
-                    manifest.icons = [
-                        { src: iconUrl, sizes: "192x192", type: "image/png" },
-                        { src: iconUrl, sizes: "512x512", type: "image/png" }
-                    ];
-                    const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-                    manifestLink.href = URL.createObjectURL(blob);
-                }).catch(e => console.log('Errore manifest:', e));
-        }
-    </script>
 """,
     unsafe_allow_html=True,
+)
+
+# --- SCRIPT PER TRASLARE IL CAMPO SOPRA LA TASTIERA SU MOBILE ---
+components.html(
+    """
+    <script>
+    (function() {
+        const parentWin = window.parent;
+        const parentDoc = parentWin.document;
+
+        if (parentWin.__endufitKeyboardFixInstalled) return;
+        parentWin.__endufitKeyboardFixInstalled = true;
+
+        function getScrollableParent(el) {
+            let curr = el ? el.parentElement : null;
+            while (curr && curr !== parentDoc.body) {
+                const style = parentWin.getComputedStyle(curr);
+                const overflowY = style.overflowY;
+                if ((overflowY === "auto" || overflowY === "scroll") && curr.scrollHeight > curr.clientHeight) {
+                    return curr;
+                }
+                curr = curr.parentElement;
+            }
+            return (
+                parentDoc.querySelector('section[data-testid="stMain"]') ||
+                parentDoc.querySelector('div[data-testid="stAppViewContainer"]') ||
+                parentDoc.documentElement
+            );
+        }
+
+        function portaCampoSopraTastiera(el) {
+            if (!el) return;
+            const tag = el.tagName;
+            if (tag !== "INPUT" && tag !== "TEXTAREA") return;
+
+            const vv = parentWin.visualViewport;
+            const vvHeight = vv ? vv.height : parentWin.innerHeight;
+            const vvTop = vv ? vv.offsetTop : 0;
+
+            const rect = el.getBoundingClientRect();
+            // Posiziona il campo nel quarto superiore dello spazio visibile sopra la tastiera
+            const desiredTop = vvTop + Math.max(95, vvHeight * 0.24);
+            const maxVisibleBottom = vvTop + vvHeight * 0.42;
+
+            if (rect.top > maxVisibleBottom || rect.top < vvTop + 60) {
+                const delta = rect.top - desiredTop;
+                const scroller = getScrollableParent(el);
+                if (scroller && typeof scroller.scrollBy === "function") {
+                    scroller.scrollBy({ top: delta, behavior: "smooth" });
+                } else {
+                    parentWin.scrollBy({ top: delta, behavior: "smooth" });
+                }
+            }
+        }
+
+        parentDoc.addEventListener("focusin", function(e) {
+            const target = e.target;
+            if (!target || (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA")) return;
+
+            // Esegue a più intervalli per seguire l'animazione di apertura della tastiera iOS/Android
+            setTimeout(() => portaCampoSopraTastiera(target), 80);
+            setTimeout(() => portaCampoSopraTastiera(target), 260);
+            setTimeout(() => portaCampoSopraTastiera(target), 480);
+        }, true);
+
+        if (parentWin.visualViewport) {
+            parentWin.visualViewport.addEventListener("resize", function() {
+                const active = parentDoc.activeElement;
+                if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+                    setTimeout(() => portaCampoSopraTastiera(active), 60);
+                }
+            });
+        }
+    })();
+    </script>
+    """,
+    height=0,
+    width=0,
 )
 
 
@@ -1056,6 +1113,22 @@ with tab_dash:
             st.altair_chart(grafico_rpe, use_container_width=True)
 
 
+# Helper per gestire st.form_submit_button con chiave univoca su qualsiasi versione di Streamlit
+_SUPPORTA_KEY_SUBMIT = "key" in inspect.signature(st.form_submit_button).parameters
+
+
+def pulsante_form(label, key, tipo="secondary", full_width=True):
+    if _SUPPORTA_KEY_SUBMIT:
+        return st.form_submit_button(
+            label, key=key, type=tipo, use_container_width=full_width
+        )
+    # Fallback con caratteri invisibili univoci per versioni molto vecchie
+    suffix = "\u200b" * (abs(hash(key)) % 40 + 1)
+    return st.form_submit_button(
+        f"{label}{suffix}", type=tipo, use_container_width=full_width
+    )
+
+
 # ==========================================
 # SEZIONE 2: SCHEDA DI ALLENAMENTO (ISOLATA CON FRAGMENT + FORM)
 # ==========================================
@@ -1069,6 +1142,7 @@ def render_sezione_allenamento():
         return
 
     st.write("### Registra la sessione di oggi")
+    data_sessione = st.date_input("Data della sessione", datetime.date.today())
 
     if is_fitness:
         if not giorni_disponibili:
@@ -1086,46 +1160,22 @@ def render_sezione_allenamento():
             st.session_state.contatore_serie = {}
         if "ultimo_giorno_scelto" not in st.session_state:
             st.session_state.ultimo_giorno_scelto = giorno_scelto
+        if "es_aperto" not in st.session_state:
+            st.session_state.es_aperto = None
 
         if st.session_state.ultimo_giorno_scelto != giorno_scelto:
             st.session_state.contatore_serie = {}
             st.session_state.ultimo_giorno_scelto = giorno_scelto
-
-        for es_obj in esercizi_assegnati:
-            es = es_obj["nome"]
-            if es not in st.session_state.contatore_serie:
-                numeri = re.findall(r"\d+", str(es_obj["serie_coach"]))
-                st.session_state.contatore_serie[es] = (
-                    max(1, int(numeri[0])) if numeri else 1
-                )
-
-        # Pannello opzionale per aggiungere/rimuovere serie senza interferire con il form
-        with st.expander("⚙️ Aggiungi o rimuovi serie agli esercizi", expanded=False):
-            for idx_es, es_obj in enumerate(esercizi_assegnati):
-                es = es_obj["nome"]
-                n_attuali = st.session_state.contatore_serie[es]
-                col_nome, col_n, col_add, col_rem = st.columns([4, 2, 1, 1])
-                with col_nome:
-                    st.markdown(f"**{es}**")
-                with col_n:
-                    st.markdown(f"{n_attuali} serie")
-                with col_add:
-                    if st.button("➕", key=f"btn_add_{giorno_scelto}_{idx_es}"):
-                        st.session_state.contatore_serie[es] = n_attuali + 1
-                        st.rerun(scope="fragment")
-                with col_rem:
-                    if st.button("➖", key=f"btn_rem_{giorno_scelto}_{idx_es}"):
-                        if n_attuali > 1:
-                            st.session_state.contatore_serie[es] = n_attuali - 1
-                            st.rerun(scope="fragment")
+            st.session_state.es_aperto = None
 
         st.divider()
         st.write("### Scheda")
 
         # TUTTI I CAMPI DENTRO st.form:
-        # Nessun refresh/invio mentre digiti. I dati vengono inviati UNA SOLA VOLTA al click finale.
+        # Nessun refresh mentre digiti; i dati vengono inviati UNA SOLA VOLTA al click finale.
         with st.form(key=f"form_fitness_{giorno_scelto}", clear_on_submit=False):
-            data_sessione = st.date_input("Data della sessione", datetime.date.today())
+            esercizio_da_aggiungere = None
+            esercizio_da_rimuovere = None
 
             for idx_es, es_obj in enumerate(esercizi_assegnati):
                 es = es_obj["nome"]
@@ -1135,18 +1185,28 @@ def render_sezione_allenamento():
                 recupero_coach = es_obj["recupero_coach"]
                 note_coach = es_obj.get("note_coach", "")
 
+                # Numero di serie di default basato sul valore stabilito dal coach
+                if es not in st.session_state.contatore_serie:
+                    numeri = re.findall(r"\d+", str(serie_coach))
+                    st.session_state.contatore_serie[es] = (
+                        max(1, int(numeri[0])) if numeri else 1
+                    )
+
                 testo_titolo = ottieni_testo_titolo(
                     es, serie_coach, rip_coach, carico_coach, recupero_coach
                 )
+                tieni_aperto = st.session_state.es_aperto == es
 
-                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                st.markdown(
+                    "<div style='margin-top: 15px;'></div>", unsafe_allow_html=True
+                )
 
                 if note_coach and note_coach.lower() not in ["nan", "n/d"]:
                     titolo_expander = f"{es} — {testo_titolo} | Note esec: {note_coach}"
                 else:
                     titolo_expander = f"{es} — {testo_titolo}"
 
-                with st.expander(titolo_expander, expanded=False):
+                with st.expander(titolo_expander, expanded=tieni_aperto):
                     img_url = cerca_immagine_esercizio(es)
                     if img_url:
                         st.markdown(
@@ -1186,22 +1246,46 @@ def render_sezione_allenamento():
                     for i in range(st.session_state.contatore_serie[es]):
                         st.markdown(f"**Serie {i + 1}**")
                         c1, c2 = st.columns(2)
+
+                        key_rip = f"inp_rip_{giorno_scelto}_{es}_{i}"
+                        key_kg = f"inp_kg_{giorno_scelto}_{es}_{i}"
+                        st.session_state.setdefault(key_rip, 0)
+                        st.session_state.setdefault(key_kg, 0.0)
+
                         with c1:
                             st.number_input(
                                 "Ripetizioni",
                                 min_value=0,
                                 step=1,
-                                value=0,
-                                key=f"inp_rip_{giorno_scelto}_{idx_es}_{i}",
+                                key=key_rip,
                             )
+
                         with c2:
                             st.number_input(
                                 etichetta_col2,
                                 min_value=0.0,
                                 step=step_col2,
-                                value=0.0,
-                                key=f"inp_kg_{giorno_scelto}_{idx_es}_{i}",
+                                key=key_kg,
                             )
+
+                    # --- PULSANTI AGGIUNGI/RIMUOVI SERIE ESATTAMENTE COME PRIMA ---
+                    btn_col1, btn_col2 = st.columns(2)
+                    with btn_col1:
+                        if pulsante_form(
+                            "➕ Aggiungi Serie",
+                            key=f"btn_add_{giorno_scelto}_{idx_es}_{es}",
+                            tipo="secondary",
+                            full_width=True,
+                        ):
+                            esercizio_da_aggiungere = es
+                    with btn_col2:
+                        if pulsante_form(
+                            "➖ Rimuovi Serie",
+                            key=f"btn_rem_{giorno_scelto}_{idx_es}_{es}",
+                            tipo="secondary",
+                            full_width=True,
+                        ):
+                            esercizio_da_rimuovere = es
 
             st.divider()
             st.write("### Fine Allenamento")
@@ -1218,12 +1302,40 @@ def render_sezione_allenamento():
             )
 
             st.divider()
-            inviato = st.form_submit_button(
+            inviato = pulsante_form(
                 "💾 Consegna Intero Allenamento",
-                type="primary",
-                use_container_width=True,
+                key=f"btn_submit_all_{giorno_scelto}",
+                tipo="primary",
+                full_width=True,
             )
 
+        # Gestione aggiunta serie (copia i valori dell'ultima serie e mantiene aperto l'expander)
+        if esercizio_da_aggiungere is not None:
+            es = esercizio_da_aggiungere
+            idx_nuovo = st.session_state.contatore_serie[es]
+            st.session_state[f"inp_rip_{giorno_scelto}_{es}_{idx_nuovo}"] = (
+                st.session_state.get(
+                    f"inp_rip_{giorno_scelto}_{es}_{idx_nuovo - 1}", 0
+                )
+            )
+            st.session_state[f"inp_kg_{giorno_scelto}_{es}_{idx_nuovo}"] = (
+                st.session_state.get(
+                    f"inp_kg_{giorno_scelto}_{es}_{idx_nuovo - 1}", 0.0
+                )
+            )
+            st.session_state.contatore_serie[es] += 1
+            st.session_state.es_aperto = es
+            st.rerun(scope="fragment")
+
+        # Gestione rimozione serie
+        if esercizio_da_rimuovere is not None:
+            es = esercizio_da_rimuovere
+            if st.session_state.contatore_serie[es] > 1:
+                st.session_state.contatore_serie[es] -= 1
+                st.session_state.es_aperto = es
+                st.rerun(scope="fragment")
+
+        # Invio unico finale al coach
         if inviato:
             righe_da_inserire = []
 
@@ -1243,7 +1355,7 @@ def render_sezione_allenamento():
 
             primo_inserimento = True
 
-            for idx_es, es_obj in enumerate(esercizi_assegnati):
+            for es_obj in esercizi_assegnati:
                 es = es_obj["nome"]
                 rip_coach = es_obj["rip_coach"]
                 carico_coach = es_obj["carico_coach"]
@@ -1269,12 +1381,8 @@ def render_sezione_allenamento():
                         suffisso = " kg"
 
                 for i in range(st.session_state.contatore_serie[es]):
-                    rip = st.session_state.get(
-                        f"inp_rip_{giorno_scelto}_{idx_es}_{i}", 0
-                    )
-                    kg = st.session_state.get(
-                        f"inp_kg_{giorno_scelto}_{idx_es}_{i}", 0.0
-                    )
+                    rip = st.session_state.get(f"inp_rip_{giorno_scelto}_{es}_{i}", 0)
+                    kg = st.session_state.get(f"inp_kg_{giorno_scelto}_{es}_{i}", 0.0)
 
                     kg_base = (
                         str(int(kg))
@@ -1319,6 +1427,7 @@ def render_sezione_allenamento():
                     scarica_dati_fogli_v2.clear()
                     st.session_state.dati_salvati = True
                     st.session_state.contatore_serie = {}
+                    st.session_state.es_aperto = None
                     st.rerun(scope="fragment")
                 except Exception as e:
                     st.error(f"Errore durante il salvataggio: {e}")
@@ -1374,7 +1483,6 @@ def render_sezione_allenamento():
         st.divider()
 
         with st.form(key="form_endurance_single"):
-            data_sessione = st.date_input("Data della sessione", datetime.date.today())
             st.write("### 📝 Com'è andata?")
             rpe_seduta = st.slider(
                 "Fatica percepita (RPE)",
