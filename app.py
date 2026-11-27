@@ -30,13 +30,15 @@ st.markdown(
         .stApp,
         [data-testid="stAppViewContainer"],
         [data-testid="stMain"],
+        [data-testid="stBottom"],
+        [data-testid="stBottomBlockContainer"],
         section.main,
         [data-testid="stHeader"] {
             color-scheme: dark !important;
             background-color: #050A18 !important;
         }
 
-        /* Nasconde il contenitore dell'iframe JS per evitare spazi bianchi extra */
+        /* Nasconde il contenitore dell'iframe JS per evitare spazi extra */
         iframe[height="0"],
         div[data-testid="stElementContainer"]:has(iframe[height="0"]) {
             display: none !important;
@@ -247,7 +249,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- SCRIPT PER TRASLARE IL CAMPO NELLA PARTE ALTA SOPRA LA TASTIERA ---
+# --- SCRIPT PER TRASLARE IL CAMPO SOPRA LA TASTIERA E FORZARE DARK VIEWPORT SU iOS ---
 components.html(
     """
     <script>
@@ -255,8 +257,42 @@ components.html(
         const parentWin = window.parent;
         const parentDoc = parentWin.document;
 
-        if (parentWin.__endufitKeyboardScrollV2) return;
-        parentWin.__endufitKeyboardScrollV2 = true;
+        function forzaSfondoScuroDocumento(doc) {
+            if (!doc) return;
+            try {
+                doc.documentElement.style.setProperty("background-color", "#050A18", "important");
+                doc.documentElement.style.setProperty("color-scheme", "dark", "important");
+                if (doc.body) {
+                    doc.body.style.setProperty("background-color", "#050A18", "important");
+                    doc.body.style.setProperty("color-scheme", "dark", "important");
+                }
+                let metaTheme = doc.querySelector('meta[name="theme-color"]');
+                if (!metaTheme) {
+                    metaTheme = doc.createElement("meta");
+                    metaTheme.name = "theme-color";
+                    doc.head.appendChild(metaTheme);
+                }
+                metaTheme.content = "#050A18";
+
+                let metaScheme = doc.querySelector('meta[name="color-scheme"]');
+                if (!metaScheme) {
+                    metaScheme = doc.createElement("meta");
+                    metaScheme.name = "color-scheme";
+                    doc.head.appendChild(metaScheme);
+                }
+                metaScheme.content = "dark";
+            } catch (e) {}
+        }
+
+        forzaSfondoScuroDocumento(parentDoc);
+        try {
+            if (parentWin.top && parentWin.top.document) {
+                forzaSfondoScuroDocumento(parentWin.top.document);
+            }
+        } catch (e) {}
+
+        if (parentWin.__endufitKeyboardScrollV3) return;
+        parentWin.__endufitKeyboardScrollV3 = true;
 
         function getAncestors(el) {
             const list = [];
@@ -273,7 +309,11 @@ components.html(
             const tag = el.tagName;
             if (tag !== "INPUT" && tag !== "TEXTAREA") return;
 
-            // Prende l'intero widget (etichetta + campo input) così si vede sia il nome che il numero
+            // Impedisce a iOS di spostare la finestra esterna lasciando bordi scoperti
+            if (parentWin.scrollY !== 0) {
+                parentWin.scrollTo(0, 0);
+            }
+
             const widgetBox =
                 el.closest('[data-testid="stNumberInput"]') ||
                 el.closest('[data-testid="stTextArea"]') ||
@@ -284,8 +324,7 @@ components.html(
             const vvTop = vv ? vv.offsetTop : 0;
             const rect = widgetBox.getBoundingClientRect();
 
-            // Porta l'etichetta + input a 75px dal bordo superiore dello schermo (ben sopra qualsiasi tastiera)
-            const targetTop = vvTop + 75;
+            const targetTop = vvTop + 65;
             const delta = rect.top - targetTop;
 
             if (Math.abs(delta) < 4) return;
@@ -318,7 +357,6 @@ components.html(
 
         function schedulaSpostamento(target) {
             if (!target || (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA")) return;
-            // Ripete lo spostamento durante e dopo l'animazione della tastiera iOS/Android
             [50, 180, 350, 550].forEach(delay => {
                 setTimeout(() => {
                     if (parentDoc.activeElement === target) {
@@ -341,6 +379,9 @@ components.html(
 
         if (parentWin.visualViewport) {
             const onViewportChange = () => {
+                if (parentWin.scrollY !== 0) {
+                    parentWin.scrollTo(0, 0);
+                }
                 const active = parentDoc.activeElement;
                 if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
                     portaCampoInAlto(active);
