@@ -218,8 +218,8 @@ st.markdown(
             font-weight: bold !important;
             font-size: 16px !important;
             letter-spacing: 0.5px !important;
-            white-space: normal !important;
-            line-height: 1.5 !important;
+            white-space: pre-line !important;
+            line-height: 1.55 !important;
         }
         div[data-testid="stExpander"] summary span[data-testid="stIconMaterial"] {
             color: #ffffff !important;
@@ -1377,7 +1377,7 @@ def render_sezione_allenamento():
                 )
 
                 if note_coach and note_coach.lower() not in ["nan", "n/d"]:
-                    titolo_expander = f"{es} — {testo_titolo} | Note esec: {note_coach}"
+                    titolo_expander = f"{es} — {testo_titolo}  \nNote esec: {note_coach}"
                 else:
                     titolo_expander = f"{es} — {testo_titolo}"
 
