@@ -21,7 +21,7 @@ st.set_page_config(
 # 2. INIZIALIZZA IL CONTROLLER DEI COOKIE
 controller = CookieController()
 
-# --- TEMA ENDUFIT: SFONDO SCURO, GLASSMORPHISM, BLU E ROSSO ---
+# --- TEMA ENDUFIT: SFONDO SCURO, BLU E GIALLO ---
 st.markdown(
     """
     <style>
@@ -148,20 +148,29 @@ st.markdown(
             color: #ffffff !important;
         }
 
-        /* Banner Installazione stile Apple Glass */
+        /* Banner Installazione Blu & Giallo ENDUFIT */
         .pwa-banner {
-            background: rgba(255, 255, 255, 0.05);
+            background: linear-gradient(135deg, rgba(16, 40, 62, 0.92), rgba(11, 28, 46, 0.85));
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white !important;
-            padding: 15px;
+            border: 1px solid rgba(245, 208, 0, 0.3);
+            color: #ffffff !important;
+            padding: 16px;
             border-radius: 16px;
             margin-bottom: 20px;
             font-size: 14px;
+            line-height: 1.5;
             text-align: center;
             border-left: 4px solid #2997ff;
-            border-right: 4px solid #e63946;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            border-right: 4px solid #F5D000;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        }
+        .pwa-banner .hl-blue {
+            color: #4db2ff !important;
+            font-weight: 700 !important;
+        }
+        .pwa-banner .hl-yellow {
+            color: #F5D000 !important;
+            font-weight: 700 !important;
         }
 
         /* Pulsante Primario */
@@ -237,25 +246,108 @@ st.markdown(
     </style>
 
     <!-- LOGO ENDUFIT IN ALTO -->
-    <div style="text-align: center; margin-top: -20px; margin-bottom: 25px;">
-        <span style="color: #ffffff; font-size: 42px; font-weight: 900; letter-spacing: -2px;">ENDU</span><span style="color: #2997ff; font-size: 42px; font-weight: 300; letter-spacing: -2px;">FIT</span>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: -15px; margin-bottom: 22px;">
+        <svg width="108" height="108" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.45));">
+            <circle cx="100" cy="100" r="95" fill="#10283E" stroke="rgba(245, 208, 0, 0.35)" stroke-width="2.5"/>
+            <!-- Monogramma EF Giallo -->
+            <path d="M 94 38 C 79 38, 65 42, 54 49" fill="none" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+            <line x1="94" y1="34" x2="94" y2="166" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+            <line x1="56" y1="84" x2="94" y2="84" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+            <path d="M 94 162 C 79 162, 65 158, 54 151" fill="none" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+            <path d="M 106 38 C 121 38, 135 42, 146 49" fill="none" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+            <line x1="106" y1="34" x2="106" y2="165" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+            <line x1="106" y1="120" x2="142" y2="120" stroke="#F5D000" stroke-width="8.5" stroke-linecap="butt"/>
+        </svg>
+        <div style="margin-top: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 21px; letter-spacing: 4.5px; line-height: 1;">
+            <span style="color: #ffffff; font-style: italic; font-weight: 400;">ENDU</span><span style="color: #F5D000; font-style: normal; font-weight: 600;">FIT</span>
+        </div>
     </div>
 
     <div class="pwa-banner">
-        📲 <b style="color: white;">Salva l'app sul telefono!</b><br><br>
-        Tocca l'icona di condivisione del browser ( 📤 ) e seleziona <b style="color: white;">"Aggiungi alla schermata Home"</b> per non perdere la tua scheda.
+        📲 <span class="hl-yellow">Salva l'app sul telefono!</span><br><br>
+        Tocca l'icona di condivisione del browser ( <span class="hl-blue">📤</span> ) e seleziona <span class="hl-yellow">"Aggiungi alla schermata Home"</span> per avere sempre la tua scheda a portata di mano.
     </div>
 """,
     unsafe_allow_html=True,
 )
 
-# --- SCRIPT PER TRASLARE IL CAMPO SOPRA LA TASTIERA E FORZARE DARK VIEWPORT SU iOS ---
+# --- SCRIPT PER ICONA HOME SCREEN, DARK VIEWPORT SU iOS E TRASLAZIONE CAMPO SOPRA TASTIERA ---
 components.html(
     """
     <script>
     (function() {
         const parentWin = window.parent;
         const parentDoc = parentWin.document;
+
+        function impostaIconaApp(doc) {
+            if (!doc || doc.__endufitIconApplied) return;
+            doc.__endufitIconApplied = true;
+            try {
+                const canvas = doc.createElement("canvas");
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext("2d");
+
+                // Sfondo blu navy pieno per icona iOS/Android
+                ctx.fillStyle = "#10283E";
+                ctx.fillRect(0, 0, 512, 512);
+
+                ctx.strokeStyle = "#F5D000";
+                ctx.lineWidth = 22;
+                ctx.lineCap = "butt";
+
+                // E specchiata (sinistra)
+                ctx.beginPath();
+                ctx.moveTo(240, 98);
+                ctx.quadraticCurveTo(185, 98, 138, 126);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(240, 88);
+                ctx.lineTo(240, 424);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(144, 215);
+                ctx.lineTo(240, 215);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(240, 414);
+                ctx.quadraticCurveTo(185, 414, 138, 386);
+                ctx.stroke();
+
+                // F (destra)
+                ctx.beginPath();
+                ctx.moveTo(272, 98);
+                ctx.quadraticCurveTo(327, 98, 374, 126);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(272, 88);
+                ctx.lineTo(272, 422);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(272, 308);
+                ctx.lineTo(364, 308);
+                ctx.stroke();
+
+                const iconUrl = canvas.toDataURL("image/png");
+                doc.querySelectorAll('link[rel="shortcut icon"], link[rel="icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
+
+                const appleTouchIcon = doc.createElement("link");
+                appleTouchIcon.rel = "apple-touch-icon";
+                appleTouchIcon.href = iconUrl;
+                doc.head.appendChild(appleTouchIcon);
+
+                const favicon = doc.createElement("link");
+                favicon.rel = "icon";
+                favicon.type = "image/png";
+                favicon.href = iconUrl;
+                doc.head.appendChild(favicon);
+            } catch (e) {}
+        }
 
         function forzaSfondoScuroDocumento(doc) {
             if (!doc) return;
@@ -285,9 +377,11 @@ components.html(
         }
 
         forzaSfondoScuroDocumento(parentDoc);
+        impostaIconaApp(parentDoc);
         try {
             if (parentWin.top && parentWin.top.document) {
                 forzaSfondoScuroDocumento(parentWin.top.document);
+                impostaIconaApp(parentWin.top.document);
             }
         } catch (e) {}
 
@@ -309,7 +403,6 @@ components.html(
             const tag = el.tagName;
             if (tag !== "INPUT" && tag !== "TEXTAREA") return;
 
-            // Impedisce a iOS di spostare la finestra esterna lasciando bordi scoperti
             if (parentWin.scrollY !== 0) {
                 parentWin.scrollTo(0, 0);
             }
